@@ -1,6 +1,6 @@
-#include "pickup_delivery_utils.hpp"
+#include "ftp_utils.hpp"
 
-Pickup_Delivery_Instance::Pickup_Delivery_Instance(
+FTP_Instance::FTP_Instance(
         Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx,
         DNodePosMap &posy, ArcValueMap &eweight, DNode &sourcenode,
         DNode &targetnode, int &vnpairs, DNodeVector &vpickup,
@@ -27,11 +27,11 @@ Pickup_Delivery_Instance::Pickup_Delivery_Instance(
     }
 }
 
-void Pickup_Delivery_Instance::start_counter() {
+void FTP_Instance::start_counter() {
     start = chrono::system_clock::now();
 }
 
-void PrintInstanceInfo(Pickup_Delivery_Instance &P) {
+void PrintInstanceInfo(FTP_Instance &P) {
     cout << endl
          << endl;
     cout << "Pickup Delivery Graph Informations" << endl;
@@ -45,7 +45,7 @@ void PrintInstanceInfo(Pickup_Delivery_Instance &P) {
     cout << endl;
 }
 
-void PrintSolution(Pickup_Delivery_Instance &P, DNodeVector &Sol,
+void PrintSolution(FTP_Instance &P, DNodeVector &Sol,
                    const string &msg) {
     // Imprime a solucao no terminal.
     cout << msg << endl
@@ -92,13 +92,13 @@ void graph_pruning(Digraph &g, const DNode &source, const DNode &target,
     cout << "Arcos depois da limpeza: " << countArcs(g) << endl;
 }
 
-bool ReadPickupDeliveryDigraph(const string &filename, Digraph &g,
-                               DNodeStringMap &vname, DNodePosMap &posx,
-                               DNodePosMap &posy, ArcValueMap &weight,
-                               DNode &source, DNode &target, int &npairs,
-                               DNodeVector &pickup, DNodeVector &delivery,
-                               Digraph::NodeMap<DNode> &del_pickup,
-                               DNodeBoolMap &is_pickup) {
+bool ReadFTPGraph(const string &filename, Digraph &g,
+                  DNodeStringMap &vname, DNodePosMap &posx,
+                  DNodePosMap &posy, ArcValueMap &weight,
+                  DNode &source, DNode &target, int &npairs,
+                  DNodeVector &pickup, DNodeVector &delivery,
+                  Digraph::NodeMap<DNode> &del_pickup,
+                  DNodeBoolMap &is_pickup) {
     ReadDigraph(filename, g, vname, posx, posy, weight);
     int n = countNodes(g);
     DNode DN[n];
@@ -130,7 +130,7 @@ bool ReadPickupDeliveryDigraph(const string &filename, Digraph &g,
     return true;
 }
 
-double route_cost(Pickup_Delivery_Instance &P, const DNodeVector &Sol) {
+double route_cost(FTP_Instance &P, const DNodeVector &Sol) {
     double cost = 0.0;
     for (int i = 1; i < P.nnodes; i++)
         if (P.weight_map[Sol[i - 1]].count(Sol[i]) == 0)
@@ -140,9 +140,9 @@ double route_cost(Pickup_Delivery_Instance &P, const DNodeVector &Sol) {
     return cost;
 }
 
-bool ViewPickupDeliverySolution(Pickup_Delivery_Instance &P, double &LB,
-                                double &UB, DNodeVector &Sol,
-                                const string &msg) {
+bool ViewFTPSolution(FTP_Instance &P, double &LB,
+                     double &UB, DNodeVector &Sol,
+                     const string &msg) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
     GA.SetDefaultDNodeAttrib(
             "color=LightGray style=filled width=0.2 height=0.2 fixedsize=true");
@@ -178,7 +178,7 @@ bool ViewPickupDeliverySolution(Pickup_Delivery_Instance &P, double &LB,
     return true;
 }
 
-bool can_swap(Pickup_Delivery_Instance &P, DNodeVector &Sol, int i, int j) {
+bool can_swap(FTP_Instance &P, DNodeVector &Sol, int i, int j) {
     bool i_is_pickup = P.is_pickup[Sol[i]];
     bool j_is_pickup = P.is_pickup[Sol[j]];
     if (i_is_pickup and j_is_pickup) {
@@ -202,7 +202,7 @@ bool can_swap(Pickup_Delivery_Instance &P, DNodeVector &Sol, int i, int j) {
     return true;             // can swap the nodes
 }
 
-inline double swap_update(Pickup_Delivery_Instance &P, DNodeVector &Sol, int i,
+inline double swap_update(FTP_Instance &P, DNodeVector &Sol, int i,
                           int j) {
     double removed_arcs_weight =
             P.weight_map[Sol[i - 1]][Sol[i]] + P.weight_map[Sol[i]][Sol[i + 1]] +
@@ -214,7 +214,7 @@ inline double swap_update(Pickup_Delivery_Instance &P, DNodeVector &Sol, int i,
     return added_arcs_weight - removed_arcs_weight;
 }
 
-bool _local_search(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool _local_search(FTP_Instance &P, double &LB, double &UB,
                    DNodeVector &Sol) {
     bool improved = false;
     double best_cost, curr_cost;
@@ -239,7 +239,7 @@ bool _local_search(Pickup_Delivery_Instance &P, double &LB, double &UB,
     return improved;
 }
 
-bool local_search(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool local_search(FTP_Instance &P, double &LB, double &UB,
                   DNodeVector &Sol) {
     bool improved = false, aux;
     cout << "-----> Fazendo uma busca local." << endl;
@@ -256,7 +256,7 @@ bool local_search(Pickup_Delivery_Instance &P, double &LB, double &UB,
     return improved;
 }
 
-void _arborescence_transversal(Pickup_Delivery_Instance &P, MinCostArb &solver,
+void _arborescence_transversal(FTP_Instance &P, MinCostArb &solver,
                                DNodeVector &Sol, DNode &currNode,
                                DNodeBoolMap &visited,
                                map<DNode, bool> &p_visited, int pos) {
@@ -301,7 +301,7 @@ void _arborescence_transversal(Pickup_Delivery_Instance &P, MinCostArb &solver,
     _arborescence_transversal(P, solver, Sol, nextNode, visited, p_visited, ++pos);
 }
 
-double arborescence_transversal(Pickup_Delivery_Instance &P, DNodeVector &Sol,
+double arborescence_transversal(FTP_Instance &P, DNodeVector &Sol,
                                 MinCostArb &solver) {
     map<DNode, bool> p_visited;                            // if each pickup has already been visited
     for (const auto &key: P.pickup) p_visited[key] = false;// init the map
@@ -316,7 +316,7 @@ double arborescence_transversal(Pickup_Delivery_Instance &P, DNodeVector &Sol,
     return route_cost(P, Sol);// Calculate the route cost
 }
 
-bool arborescence_heuristic(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool arborescence_heuristic(FTP_Instance &P, double &LB, double &UB,
                             DNodeVector &Sol, MinCostArb &solver) {
     DNodeVector arbSol(P.nnodes);// starts the solution vector
     double newUB = arborescence_transversal(P, arbSol, solver);

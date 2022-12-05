@@ -1,11 +1,11 @@
-#include "pickup_delivery_utils.hpp"
+#include "ftp_utils.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <lemon/list_graph.h>
 #include <lemon/preflow.h>
 #include <string>
 
-bool solve(Pickup_Delivery_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
+bool solve(FTP_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
     // Generates the arborescence that will guide the route creation:
     MinCostArb arb_solver(P.g, P.weight);
     arb_solver.run(P.source);// root the arborescence in the source
@@ -65,15 +65,15 @@ int main(int argc, char *argv[]) {
     DNode source, target;
     int npairs;
 
-    if (!ReadPickupDeliveryDigraph(digraph_filename, g, vname, px, py, weight,
-                                   source, target, npairs, pickup, delivery,
-                                   del_pickup, is_pickup)) {
+    if (!ReadFTPGraph(digraph_filename, g, vname, px, py, weight,
+                      source, target, npairs, pickup, delivery,
+                      del_pickup, is_pickup)) {
         cout << "Erro na leitura do grafo de entrada." << endl;
         exit(EXIT_FAILURE);
     }
 
-    Pickup_Delivery_Instance P(g, vname, px, py, weight, source, target, npairs,
-                               pickup, delivery, del_pickup, is_pickup, INFINITY);
+    FTP_Instance P(g, vname, px, py, weight, source, target, npairs,
+                   pickup, delivery, del_pickup, is_pickup, INFINITY);
     PrintInstanceInfo(P);
     P.eps_min = P.eps_max = atof(argv[2]);
 

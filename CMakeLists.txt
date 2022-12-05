@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(PROJ-MO824
+project(Freeze_Tag_Problem_ILP
         VERSION 1.0
         LANGUAGES CXX)
 
@@ -17,7 +17,7 @@ include_directories($ENV{GUROBI_HOME}/include)
 
 # Utils used in all targets
 add_library(graph_utils src/mygraphlib.cpp src/geompack.cpp src/myutils.cpp
-        src/mycolor.cpp src/pickup_delivery_utils.cpp)
+        src/mycolor.cpp src/ftp_utils.cpp)
 
 # Lemon lib directory
 link_directories(${CMAKE_SOURCE_DIR}/lemon/lemon-1.3.1/lib)
@@ -29,21 +29,21 @@ link_directories($ENV{GUROBI_HOME}/lib)
 set(CMAKE_CXX_FLAGS "-m64 -Ofast -Wall -Wunused-local-typedefs -lemon -fopenmp")
 
 # Target executable and linking
-add_executable(pickup_delivery_branch_and_bound src/pickup_delivery_branch_and_bound.cpp)
-target_link_libraries(pickup_delivery_branch_and_bound m)
-target_link_libraries(pickup_delivery_branch_and_bound graph_utils)
+add_executable(ftp_branch_and_bound src/ftp_branch_and_bound.cpp)
+target_link_libraries(ftp_branch_and_bound m)
+target_link_libraries(ftp_branch_and_bound graph_utils)
 
-add_executable(pickup_delivery_heuristic src/pickup_delivery_heuristic.cpp)
-target_link_libraries(pickup_delivery_heuristic m)
-target_link_libraries(pickup_delivery_heuristic graph_utils)
+add_executable(ftp_heuristic src/ftp_heuristic.cpp)
+target_link_libraries(ftp_heuristic m)
+target_link_libraries(ftp_heuristic graph_utils)
 
-add_executable(pickup_delivery_brkga src/pickup_delivery_brkga.cpp src/PickupDeliveryDecoder.cpp)
-target_link_libraries(pickup_delivery_brkga m)
-target_link_libraries(pickup_delivery_brkga pthread)
-target_link_libraries(pickup_delivery_brkga graph_utils)
+add_executable(ftp_brkga src/ftp_brkga.cpp src/FTPDecoder.cpp)
+target_link_libraries(ftp_brkga m)
+target_link_libraries(ftp_brkga pthread)
+target_link_libraries(ftp_brkga graph_utils)
 
-add_executable(pickup_delivery_ilp src/pickup_delivery_ilp.cpp)
-target_link_libraries(pickup_delivery_ilp m)
-target_link_libraries(pickup_delivery_ilp pthread)
-target_link_libraries(pickup_delivery_ilp graph_utils)
-target_link_libraries(pickup_delivery_ilp gurobi_c++ gurobi95)
+add_executable(ftp_ilp src/ftp_ilp.cpp)
+target_link_libraries(ftp_ilp m)
+target_link_libraries(ftp_ilp pthread)
+target_link_libraries(ftp_ilp graph_utils)
+target_link_libraries(ftp_ilp gurobi_c++ gurobi95)

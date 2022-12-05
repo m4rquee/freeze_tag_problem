@@ -1,5 +1,5 @@
-#ifndef PICKUP_DELIVERY_UTILS_DEFINE
-#define PICKUP_DELIVERY_UTILS_DEFINE
+#ifndef FTP_UTILS_DEFINE
+#define FTP_UTILS_DEFINE
 
 #include "mygraphlib.hpp"
 #include <chrono>
@@ -35,16 +35,16 @@ typedef MinCostArborescence<Digraph, ArcValueMap> MinCostArb;
 typedef priority_queue<double, vector<double>, greater<>> min_heap;
 typedef priority_queue<Arc, vector<Arc>, ArcCmp> min_arc_heap;
 
-// Pickup_Delivery_Instance put all relevant information in one class.
-class Pickup_Delivery_Instance {
+// FTP_Instance put all relevant information in one class.
+class FTP_Instance {
 public:
-    Pickup_Delivery_Instance(Digraph &graph, DNodeStringMap &vvname,
-                             DNodePosMap &posx, DNodePosMap &posy,
-                             ArcValueMap &eweight, DNode &sourcenode,
-                             DNode &targetnode, int &npairs, DNodeVector &pickup,
-                             DNodeVector &delivery,
-                             Digraph::NodeMap<DNode> &del_pickup,
-                             DNodeBoolMap &is_pickup, int time_limit);
+    FTP_Instance(Digraph &graph, DNodeStringMap &vvname,
+                 DNodePosMap &posx, DNodePosMap &posy,
+                 ArcValueMap &eweight, DNode &sourcenode,
+                 DNode &targetnode, int &npairs, DNodeVector &pickup,
+                 DNodeVector &delivery,
+                 Digraph::NodeMap<DNode> &del_pickup,
+                 DNodeBoolMap &is_pickup, int time_limit);
     void start_counter();
 
     double eps_min = 2.0, eps_max = 2.0;
@@ -67,28 +67,28 @@ public:
     map<DNode, map<DNode, double>> weight_map;// used for fast weight lookup
 };
 
-void PrintInstanceInfo(Pickup_Delivery_Instance &P);
-void PrintSolution(Pickup_Delivery_Instance &P, DNodeVector &Sol,
+void PrintInstanceInfo(FTP_Instance &P);
+void PrintSolution(FTP_Instance &P, DNodeVector &Sol,
                    const string &msg);
 
-bool ReadPickupDeliveryDigraph(const string &filename, Digraph &g,
-                               DNodeStringMap &vname, DNodePosMap &posx,
-                               DNodePosMap &posy, ArcValueMap &weight,
-                               DNode &source, DNode &target, int &npairs,
-                               DNodeVector &pickup, DNodeVector &delivery,
-                               Digraph::NodeMap<DNode> &del_pickup,
-                               DNodeBoolMap &is_pickup);
+bool ReadFTPGraph(const string &filename, Digraph &g,
+                  DNodeStringMap &vname, DNodePosMap &posx,
+                  DNodePosMap &posy, ArcValueMap &weight,
+                  DNode &source, DNode &target, int &npairs,
+                  DNodeVector &pickup, DNodeVector &delivery,
+                  Digraph::NodeMap<DNode> &del_pickup,
+                  DNodeBoolMap &is_pickup);
 
-double route_cost(Pickup_Delivery_Instance &P, const DNodeVector &Sol);
+double route_cost(FTP_Instance &P, const DNodeVector &Sol);
 
-bool ViewPickupDeliverySolution(Pickup_Delivery_Instance &P, double &LB,
-                                double &UB, DNodeVector &Sol,
-                                const string &msg);
+bool ViewFTPSolution(FTP_Instance &P, double &LB,
+                     double &UB, DNodeVector &Sol,
+                     const string &msg);
 
-bool local_search(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool local_search(FTP_Instance &P, double &LB, double &UB,
                   DNodeVector &Sol);
 
-bool arborescence_heuristic(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool arborescence_heuristic(FTP_Instance &P, double &LB, double &UB,
                             DNodeVector &Sol, MinCostArb &solver);
 
-#endif// PICKUP_DELIVERY_UTILS_DEFINE
+#endif// FTP_UTILS_DEFINE

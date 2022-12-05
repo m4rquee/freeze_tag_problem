@@ -1,16 +1,16 @@
-#include "PickupDeliveryDecoder.hpp"
+#include "FTPDecoder.hpp"
 
-PickupDeliveryDecoder::PickupDeliveryDecoder(Pickup_Delivery_Instance &P) : P(P) {}
+FTPDecoder::FTPDecoder(FTP_Instance &P) : P(P) {}
 
-PickupDeliveryDecoder::~PickupDeliveryDecoder() = default;
+FTPDecoder::~FTPDecoder() = default;
 
-double PickupDeliveryDecoder::decode(const std::vector<double> &chromosome) const {
+double FTPDecoder::decode(const std::vector<double> &chromosome) const {
     DNodeVector sol(P.nnodes);
     decode(chromosome, sol);
     return route_cost(P, sol);
 }
 
-void PickupDeliveryDecoder::decode(const vector<double> &chromosome, DNodeVector &Sol) const {
+void FTPDecoder::decode(const vector<double> &chromosome, DNodeVector &Sol) const {
     map<DNode, bool> p_visited;                            // if each pickup has already been visited
     for (const auto &key: P.pickup) p_visited[key] = false;// init the map
 

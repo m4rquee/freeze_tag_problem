@@ -1,5 +1,5 @@
+#include "ftp_utils.hpp"
 #include "gurobi_c++.h"
-#include "pickup_delivery_utils.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -9,7 +9,7 @@
 const long unsigned seed = 42;// seed to the random number generator
 
 class SubCycleElim : public GRBCallback {
-    Pickup_Delivery_Instance &P;
+    FTP_Instance &P;
     Digraph::ArcMap<GRBVar> &x_e;
     double (GRBCallback::*solution_value)(GRBVar) = nullptr;
     DCutMap cut;
@@ -17,7 +17,7 @@ class SubCycleElim : public GRBCallback {
     DiPFType preflow_solver;
 
 public:
-    SubCycleElim(Pickup_Delivery_Instance &p, Digraph::ArcMap<GRBVar> &x_e)
+    SubCycleElim(FTP_Instance &p, Digraph::ArcMap<GRBVar> &x_e)
         : P(p), x_e(x_e), cut(P.g), capacity(P.g),
           preflow_solver(P.g, capacity, P.source, P.target) {
         preflow_solver.tolerance(DefDiTol);
@@ -81,7 +81,7 @@ protected:
     }
 };
 
-inline bool arb_heuristic(Pickup_Delivery_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
+inline bool arb_heuristic(FTP_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
     // Generates the arborescence that will guide the route creation:
     MinCostArb arb_solver(P.g, P.weight);
     arb_solver.run(P.source);// root the arborescence in the source
@@ -91,7 +91,7 @@ inline bool arb_heuristic(Pickup_Delivery_Instance &P, double &LB, double &UB, D
     return local_search(P, LB, UB, Sol) or improved;
 }
 
-void translate_sol(Pickup_Delivery_Instance &P, DNodeVector &Sol,
+void translate_sol(FTP_Instance &P, DNodeVector &Sol,
                    Digraph::ArcMap<GRBVar> &x_e) {
     Sol[0] = P.source;
     Sol[P.nnodes - 1] = P.target;
@@ -104,7 +104,7 @@ void translate_sol(Pickup_Delivery_Instance &P, DNodeVector &Sol,
                 }
 }
 
-bool solve(Pickup_Delivery_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
+bool solve(FTP_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
     P.start_counter();
     bool improved = arb_heuristic(P, LB, UB, Sol);
 
@@ -235,15 +235,15 @@ int main(int argc, char *argv[]) {
     DNode source, target;
     int npairs;
 
-    if (!ReadPickupDeliveryDigraph(digraph_filename, g, vname, px, py, weight,
-                                   source, target, npairs, pickup, delivery,
-                                   del_pickup, is_pickup)) {
+    if (!ReadFTPGraph(digraph_filename, g, vname, px, py, weight,
+                      source, target, npairs, pickup, delivery,
+                      del_pickup, is_pickup)) {
         cout << "Erro na leitura do grafo de entrada." << endl;
         exit(EXIT_FAILURE);
     }
 
-    Pickup_Delivery_Instance P(g, vname, px, py, weight, source, target, npairs,
-                               pickup, delivery, del_pickup, is_pickup, maxtime);
+    FTP_Instance P(g, vname, px, py, weight, source, target, npairs,
+                   pickup, delivery, del_pickup, is_pickup, maxtime);
     PrintInstanceInfo(P);
 
     DNodeVector Solucao(P.nnodes);

@@ -1,5 +1,5 @@
-#include "PickupDeliveryDecoder.hpp"
-#include "pickup_delivery_utils.hpp"
+#include "FTPDecoder.hpp"
+#include "ftp_utils.hpp"
 #include <BRKGA.h>
 #include <MTRand.h>
 #include <cstdio>
@@ -17,14 +17,14 @@ const unsigned MAXT = 4;                                // number of threads for
 const unsigned X_NUMBER = 2;                            // exchange top 2 best
 const unsigned K_MAX = 1500;                            // maximum value for the restart(k) strategy
 
-inline void genArbLB(Pickup_Delivery_Instance &P, double &LB) {
+inline void genArbLB(FTP_Instance &P, double &LB) {
     MinCostArb arb_solver(P.g, P.weight);// generates a min arborescence to derive a LB
     arb_solver.run(P.source);            // root the arborescence in the source
     // As a spanning digraph rooted at the source this is itself a LB:
     LB = max(LB, arb_solver.arborescenceCost());
 }
 
-bool solve(Pickup_Delivery_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
+bool solve(FTP_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
     bool improved = false;
     genArbLB(P, LB);
 
@@ -50,11 +50,11 @@ bool solve(Pickup_Delivery_Instance &P, double &LB, double &UB, DNodeVector &Sol
     cout << "\tgenerations maximum          : MAX_GENS = " << MAX_GENS << endl;
     cout << "\tbest individuals exchange    : X_INTVL = " << X_INTVL << endl;
 
-    PickupDeliveryDecoder decoder(P);
+    FTPDecoder decoder(P);
     MTRand rng(seed);// initialize the random number generator
     // Initialize the BRKGA-based heuristic:
-    BRKGA<PickupDeliveryDecoder, MTRand> algorithm(n, p, pe, pm, rhoe, decoder,
-                                                   rng, I, MAXT);
+    BRKGA<FTPDecoder, MTRand> algorithm(n, p, pe, pm, rhoe, decoder,
+                                        rng, I, MAXT);
     unsigned unchanged_checks = 0, reset_count = 0;
     DNodeVector runSol(P.nnodes);// current aux solution vector
     double best_running = MY_INF;// best fitness since last restart
@@ -154,15 +154,15 @@ int main(int argc, char *argv[]) {
     DNode source, target;
     int npairs;
 
-    if (!ReadPickupDeliveryDigraph(digraph_filename, g, vname, px, py, weight,
-                                   source, target, npairs, pickup, delivery,
-                                   del_pickup, is_pickup)) {
+    if (!ReadFTPGraph(digraph_filename, g, vname, px, py, weight,
+                      source, target, npairs, pickup, delivery,
+                      del_pickup, is_pickup)) {
         cout << "Erro na leitura do grafo de entrada." << endl;
         exit(EXIT_FAILURE);
     }
 
-    Pickup_Delivery_Instance P(g, vname, px, py, weight, source, target, npairs,
-                               pickup, delivery, del_pickup, is_pickup, maxtime);
+    FTP_Instance P(g, vname, px, py, weight, source, target, npairs,
+                   pickup, delivery, del_pickup, is_pickup, maxtime);
     PrintInstanceInfo(P);
 
     DNodeVector Solucao(P.nnodes);

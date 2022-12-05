@@ -1,4 +1,4 @@
-#include "pickup_delivery_utils.hpp"
+#include "ftp_utils.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -6,7 +6,7 @@
 #include <lemon/preflow.h>
 #include <string>
 
-double *ordered_edge_prefix_sum(Pickup_Delivery_Instance &P, MinCostArb &solver) {
+double *ordered_edge_prefix_sum(FTP_Instance &P, MinCostArb &solver) {
     // Init a min heap to sort the elements:
     min_heap queue;
     for (ArcIt a(P.g); a != INVALID; ++a)
@@ -22,7 +22,7 @@ double *ordered_edge_prefix_sum(Pickup_Delivery_Instance &P, MinCostArb &solver)
     return p_sum;
 }
 
-bool _exact_solution(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool _exact_solution(FTP_Instance &P, double &LB, double &UB,
                      DNodeVector &currSol, DNodeVector &bestSol, double *p_sum,
                      DNode &currNode, DNodeBoolMap &visited,
                      map<DNode, bool> &p_visited, int pos, double curr_weight,
@@ -88,7 +88,7 @@ bool _exact_solution(Pickup_Delivery_Instance &P, double &LB, double &UB,
     return improved;
 }
 
-bool exact_solution(Pickup_Delivery_Instance &P, double &LB, double &UB,
+bool exact_solution(FTP_Instance &P, double &LB, double &UB,
                     DNodeVector &Sol, MinCostArb &solver) {
     map<DNode, bool> p_visited;                            // if each pickup has already been visited
     for (const auto &key: P.pickup) p_visited[key] = false;// init the map
@@ -132,7 +132,7 @@ bool exact_solution(Pickup_Delivery_Instance &P, double &LB, double &UB,
     return improved;
 }
 
-bool solve(Pickup_Delivery_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
+bool solve(FTP_Instance &P, double &LB, double &UB, DNodeVector &Sol) {
     P.start_counter();// fixes the start time point
 
     // Generates the arborescence that will guide the route creation:
@@ -195,15 +195,15 @@ int main(int argc, char *argv[]) {
     DNode source, target;
     int npairs;
 
-    if (!ReadPickupDeliveryDigraph(digraph_filename, g, vname, px, py, weight,
-                                   source, target, npairs, pickup, delivery,
-                                   del_pickup, is_pickup)) {
+    if (!ReadFTPGraph(digraph_filename, g, vname, px, py, weight,
+                      source, target, npairs, pickup, delivery,
+                      del_pickup, is_pickup)) {
         cout << "Erro na leitura do grafo de entrada." << endl;
         exit(EXIT_FAILURE);
     }
 
-    Pickup_Delivery_Instance P(g, vname, px, py, weight, source, target, npairs,
-                               pickup, delivery, del_pickup, is_pickup, maxtime);
+    FTP_Instance P(g, vname, px, py, weight, source, target, npairs,
+                   pickup, delivery, del_pickup, is_pickup, maxtime);
     PrintInstanceInfo(P);
 
     DNodeVector Solucao;
