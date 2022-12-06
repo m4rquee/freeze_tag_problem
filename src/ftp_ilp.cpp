@@ -79,7 +79,10 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (int t = 0; t < T_MAX - 1; t++)
         for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
             GRBLinExpr neighborhood_sum = 0;
-            for (NodeIt u(P.g, v); u != INVALID; ++u) neighborhood_sum += (*q_t_v[t])[u];
+            for (IncEdgeIt e(P.g, v); e != INVALID; ++e) {
+                auto u = P.g.oppositeNode(v, e);
+                neighborhood_sum += (*q_t_v[t])[u];
+            }
             model.addConstr((*a_t_v[t + 1])[v] <= (*a_t_v[t])[v] + neighborhood_sum);
         }
     cout << "-> a node becomes active only after receiving an active robot - " << constrCount << " constrs" << endl;
@@ -110,7 +113,10 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (int t = 0; t < T_MAX - 1; t++)
         for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
             GRBLinExpr neighborhood_sum = 0;
-            for (NodeIt u(P.g, v); u != INVALID; ++u) neighborhood_sum += (*q_t_v[t])[u];
+            for (IncEdgeIt e(P.g, v); e != INVALID; ++e) {
+                auto u = P.g.oppositeNode(v, e);
+                neighborhood_sum += (*q_t_v[t])[u];
+            }
             model.addConstr((*q_t_v[t + 1])[v] <= (*q_t_v[t])[v] + neighborhood_sum);
         }
     cout << "-> the robots moves acording to the nodes neighborhoods - " << constrCount << " constrs" << endl;
@@ -128,10 +134,10 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
 
     cout << endl;
     for (int t = 0; t < T_MAX; t++) {
-        bool active = (bool) f_t[t].get(GRB_DoubleAttr_X);
-        cout << "- t = " << t << ". finished " << active << endl;
+        bool active = f_t[t].get(GRB_DoubleAttr_X) >= 1 - MY_EPS;
+        cout << "- t = " << t << " - finished = " << active << endl;
         for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
-            active = (bool) (*a_t_v[t])[v].get(GRB_DoubleAttr_X);
+            active = (*a_t_v[t])[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS;
             cout << "a_" << P.vname[v].c_str() << " = " << active << " ";
         }
         cout << endl;
@@ -171,6 +177,7 @@ int main(int argc, char *argv[]) {
 
     graph_filename = argv[1];
     maxtime = atoi(argv[2]);
+    MY_EPS = 1E-1;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
     if (argc >= 4) LB = atof(argv[3]);
     if (argc >= 5) UB = atof(argv[4]);
