@@ -444,6 +444,21 @@ bool ReadGraphColumn(StringTable &T,LineToArcMap &arcmap,string colname,ArcIntMa
 //------------------------------------------------------------
 
 bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
+               EdgeValueMap *weight) {
+    string type = GetGraphFileType(filename);
+    if (type != "graph") {
+        cout << "Error: Unknown type of graph: " << type << endl;
+        exit(1);
+    }
+    GraphTable GT(filename, g);// Read the graph (only nodes and edges)
+    bool ok = GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename, vname);
+    if (weight != nullptr) ok = ok && GT.GetColumn("weight", *weight);
+    ok = ok && GetNodeCoordinates(GT, mygraphlibparameters.inputgraphtable_posx, posx,
+                                  mygraphlibparameters.inputgraphtable_posy, posy);
+    return ok;
+}
+
+bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
                NodeValueMap *weight) {
     string type = GetGraphFileType(filename);
     if (type != "graph") {

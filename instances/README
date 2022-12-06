@@ -1,8 +1,9 @@
-Format for graphs:
+Format for graphs (the node zero is the source):
 
 # GRAPH: (file.g)
 nnodes   nedges    type
    110    1000    graph
+0 posx posy
 nodename posx posy
 ...
 endpoint1 endpoint2 weight

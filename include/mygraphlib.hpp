@@ -175,6 +175,8 @@ inline string GetGraphFileType(string filename){
 bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
                  ArcValueMap &weight);
 bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
+               EdgeValueMap *weight);
+bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
                NodeValueMap *weight);
 
 // Fazer o TableToGraph e o GraphToTable

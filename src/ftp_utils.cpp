@@ -24,20 +24,17 @@ void PrintSolution(FTP_Instance &P, NodeVector &Sol, const string &msg) {
 
 bool ReadFTPGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
                   Node &source, int &nnodes) {
-    ReadGraph(filename, g, vname, posx, posy, nullptr);
+    if (!ReadGraph(filename, g, vname, posx, posy, (EdgeValueMap *) nullptr)) return false;
     nnodes = countNodes(g);
-    Node DN[nnodes];
-    int i = 0;
-    for (NodeIt v(g); v != INVALID; ++v, i++) DN[nnodes - i - 1] = v;
-    source = DN[0];
+    source = GetNodeByName(g, vname, "0");
     return true;
 }
 
 bool ViewFTPSolution(FTP_Instance &P, double &LB, double &UB, const string &msg) {
     GraphAttributes GA(P.g, P.vname, P.px, P.py);
     GA.SetDefaultNodeAttrib("color=LightGray style=filled width=0.2 height=0.2 fixedsize=true");
-    for (EdgeIt e(P.g); e != INVALID; ++e) GA.SetColor(e, "Invis");
-    GA.SetColor(P.source, "Red");// source and target are painted in White
+    for (EdgeIt e(P.g); e != INVALID; ++e) GA.SetColor(e, "Black");
+    GA.SetColor(P.source, "Red");
     GA.SetShape(P.source, "star");
     GA.SetLabel("Scheduling starting from node " + P.vname[P.source] + " of value " + DoubleToString(UB) +
                 ". LB = " + DoubleToString(LB) + ". " + msg);
