@@ -33,17 +33,18 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     }
 
     // ILP problem variables: ----------------------------------------------------
-    const int T_MAX = 2 * (P.nnodes - 1) * (P.nnodes - 2) + 1;// maximum makespan
+    const int max_D = P.nnodes - 1;                           // maximum possible diameter/degree
+    const int T_MAX = (int) (2.0 * max_D * ceil(log2(max_D)));// makespan UB (greedy tree based scheduling)
     cout << "-> T_MAX - " << T_MAX << endl;
-    auto q_t_v = new Graph::NodeMap<GRBVar> *[T_MAX];       // quantity of active robots in the node v at time t
-    auto a_t_v = new Graph::NodeMap<GRBVar> *[T_MAX];       // if the node v has already been visited at time t
-    auto f_t = new GRBVar[T_MAX];                           // if the scheduling is finished by time t
-    model.addVar(P.nnodes, P.nnodes, 1.0, GRB_INTEGER, "n");// add n to the cost
+    auto q_t_v = new Graph::NodeMap<GRBVar> *[T_MAX]; // quantity of active robots in the node v at time t
+    auto a_t_v = new Graph::NodeMap<GRBVar> *[T_MAX]; // if the node v has already been visited at time t
+    auto f_t = new GRBVar[T_MAX];                     // if the scheduling is finished by time t
+    model.addVar(T_MAX, T_MAX, 1.0, GRB_INTEGER, "n");// add n to the cost
 
     for (int t = 0; t < T_MAX; t++) {
         char name[100];
         sprintf(name, "f_%d", t);
-        f_t[t] = model.addVar(0.0, 1.0, -1.0, GRB_BINARY, name);
+        f_t[t] = model.addVar(0.0, t != 0, -1.0, GRB_BINARY, name);
 
         q_t_v[t] = new Graph::NodeMap<GRBVar>(P.g);
         a_t_v[t] = new Graph::NodeMap<GRBVar>(P.g);
@@ -60,24 +61,24 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "Adding the model restrictions:" << endl;
 
     int constrCount = 0;
-    for (NodeIt v(P.g); v != INVALID; ++v) {
-        model.addConstr((*q_t_v[0])[v] == (v == P.source));
-        model.addConstr((*a_t_v[0])[v] == (v == P.source));
-        constrCount += 2;
+    for (NodeIt v(P.g); v != INVALID; ++v, constrCount += 2) {
+        bool is_source = v == P.source;
+        model.addConstr((*q_t_v[0])[v] == is_source);
+        model.addConstr((*a_t_v[0])[v] == is_source);
     }
-    cout << "-> in the begining there only one active robot at the source - " << constrCount << " constrs" << endl;
+    cout << "-> in the begining there is only one active robot at the source - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (int t = 0; t < T_MAX - 1; t++, constrCount++) {
         model.addConstr(f_t[t + 1] >= f_t[t]);
         for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr((*a_t_v[t + 1])[v] >= (*a_t_v[t])[v]);
     }
-    cout << "-> after active/finished remains active/finished - " << constrCount << " constrs" << endl;
+    cout << "-> after activated/finished remains activated/finished - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (NodeIt v(P.g); v != INVALID; ++v)
-        for (int t = 0; t < T_MAX; t++, constrCount++) model.addConstr((*q_t_v[t])[v] >= P.nnodes * (*a_t_v[t])[v]);
-    cout << "-> a node can only have actives nodes after activated - " << constrCount << " constrs" << endl;
+        for (int t = 0; t < T_MAX; t++, constrCount++) model.addConstr((*q_t_v[t])[v] <= P.nnodes * (*a_t_v[t])[v]);
+    cout << "-> a node can only have active robots after being activated - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (int t = 1; t < T_MAX; t++, constrCount++) {
@@ -115,6 +116,22 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
             LB = UB;
     }
     cout << "New LB - " << LB << endl;
+
+    cout << endl;
+    for (int t = 0; t < T_MAX; t++) {
+        bool active = (bool) f_t[t].get(GRB_DoubleAttr_X);
+        cout << "- t = " << t << ". finished " << active << endl;
+        for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
+            active = (bool) (*a_t_v[t])[v].get(GRB_DoubleAttr_X);
+            cout << "a_" << P.vname[v].c_str() << " = " << active << " ";
+        }
+        cout << endl;
+        for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
+            int q = (int) (*q_t_v[t])[v].get(GRB_DoubleAttr_X);
+            cout << "q_" << P.vname[v].c_str() << " = " << q << " ";
+        }
+        cout << endl << endl;
+    }
 
     return improved;
 }
