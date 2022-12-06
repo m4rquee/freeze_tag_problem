@@ -76,6 +76,15 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "-> after activated/finished remains activated/finished - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
+    for (int t = 0; t < T_MAX - 1; t++)
+        for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
+            GRBLinExpr neighborhood_sum = 0;
+            for (NodeIt u(P.g, v); u != INVALID; ++u) neighborhood_sum += (*q_t_v[t])[u];
+            model.addConstr((*a_t_v[t + 1])[v] <= (*a_t_v[t])[v] + neighborhood_sum);
+        }
+    cout << "-> a node becomes active only after receiving an active robot - " << constrCount << " constrs" << endl;
+
+    constrCount = 0;
     for (NodeIt v(P.g); v != INVALID; ++v)
         for (int t = 0; t < T_MAX; t++, constrCount++) model.addConstr((*q_t_v[t])[v] <= P.nnodes * (*a_t_v[t])[v]);
     cout << "-> a node can only have active robots after being activated - " << constrCount << " constrs" << endl;
