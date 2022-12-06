@@ -29,19 +29,6 @@ link_directories($ENV{GUROBI_HOME}/lib)
 set(CMAKE_CXX_FLAGS "-m64 -Ofast -Wall -Wunused-local-typedefs -lemon -fopenmp")
 
 # Target executable and linking
-add_executable(ftp_branch_and_bound src/ftp_branch_and_bound.cpp)
-target_link_libraries(ftp_branch_and_bound m)
-target_link_libraries(ftp_branch_and_bound graph_utils)
-
-add_executable(ftp_heuristic src/ftp_heuristic.cpp)
-target_link_libraries(ftp_heuristic m)
-target_link_libraries(ftp_heuristic graph_utils)
-
-add_executable(ftp_brkga src/ftp_brkga.cpp src/FTPDecoder.cpp)
-target_link_libraries(ftp_brkga m)
-target_link_libraries(ftp_brkga pthread)
-target_link_libraries(ftp_brkga graph_utils)
-
 add_executable(ftp_ilp src/ftp_ilp.cpp)
 target_link_libraries(ftp_ilp m)
 target_link_libraries(ftp_ilp pthread)

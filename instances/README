@@ -1,9 +1,9 @@
-Format for digraphs:
+Format for graphs:
 
-# DIGRAPH: (file.dig)
-nnodes   narcs         type
-   110     1000      digraph
+# GRAPH: (file.g)
+nnodes   nedges    type
+   110    1000    graph
 nodename posx posy
 ...
-tail head weight
+endpoint1 endpoint2 weight
 ...

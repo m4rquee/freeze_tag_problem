@@ -1,0 +1,9 @@
+nnodes nedges type
+3 2 graph
+nodename posx posy
+0 0 0
+1 0 1
+2 0 2
+endpoint1 endpoint2 weight
+0 1 1
+1 2 1
