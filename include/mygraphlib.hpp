@@ -172,12 +172,10 @@ inline string GetGraphFileType(string filename){
     file.close();
     return(type);}
 
-bool ReadDigraph(string filename, Digraph &g, DNodeStringMap& vname,
-                 DNodePosMap& posx, DNodePosMap& posy, ArcValueMap& weight);
-bool ReadGraph(string filename, Graph &g, NodeStringMap& vname,
-               NodePosMap& posx, NodePosMap& posy, EdgeValueMap& weight);
-bool ReadGraph(string filename, Graph &g, NodeStringMap& vname,
-               NodePosMap& posx, NodePosMap& posy, NodeValueMap& weight);
+bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
+                 ArcValueMap &weight);
+bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
+               NodeValueMap *weight);
 
 // Fazer o TableToGraph e o GraphToTable
 // (e se for o caso, o DigraphToTable/TableToDigraph)

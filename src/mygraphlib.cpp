@@ -443,57 +443,35 @@ bool ReadGraphColumn(StringTable &T,LineToArcMap &arcmap,string colname,ArcIntMa
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[arcmap[i]]); return(true);}
 //------------------------------------------------------------
 
-bool ReadGraph(string filename,
-               Graph &g,
-               NodeStringMap& vname,
-               NodePosMap& posx,
-               NodePosMap& posy,
-               EdgeValueMap& weight)
-{
+bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
+               NodeValueMap *weight) {
     string type = GetGraphFileType(filename);
-    if (type!="graph"){cout<<"Error: Unknown type of graph: "<<type<<endl;exit(1);}
-    GraphTable GT(filename,g); // Read the graph (only nodes and edges)
-    bool ok = GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename,vname);
-    ok = ok && GT.GetColumn("weight",weight);
-    ok = ok && GetNodeCoordinates(GT,mygraphlibparameters.inputgraphtable_posx,posx,
-                                  mygraphlibparameters.inputgraphtable_posy,posy);
-    return(ok);
-}
-
-bool ReadGraph(string filename,
-               Graph &g,
-               NodeStringMap& vname,
-               NodePosMap& posx,
-               NodePosMap& posy,
-               NodeValueMap& weight)
-{
-    string type = GetGraphFileType(filename);
-    if (type!="graph"){cout<<"Error: Unknown type of graph: "<<type<<endl;exit(1);}
-    GraphTable GT(filename,g); // Read the graph (only nodes and edges)
-    bool ok = GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename,vname);
-    ok = ok && GT.GetColumn("weight",weight);
-    ok = ok && GetNodeCoordinates(GT,mygraphlibparameters.inputgraphtable_posx,posx,
-                                  mygraphlibparameters.inputgraphtable_posy,posy);
-    return(ok);
+    if (type != "graph") {
+        cout << "Error: Unknown type of graph: " << type << endl;
+        exit(1);
+    }
+    GraphTable GT(filename, g);// Read the graph (only nodes and edges)
+    bool ok = GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename, vname);
+    if (weight != nullptr) ok = ok && GT.GetColumn("weight", *weight);
+    ok = ok && GetNodeCoordinates(GT, mygraphlibparameters.inputgraphtable_posx, posx,
+                                  mygraphlibparameters.inputgraphtable_posy, posy);
+    return ok;
 }
 
 
-bool ReadDigraph(string filename,
-                 Digraph &g,
-                 DNodeStringMap& vname,
-                 DNodePosMap& posx,
-                 DNodePosMap& posy,
-                 ArcValueMap& weight)
-{
+bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
+                 ArcValueMap &weight) {
     string type = GetGraphFileType(filename);
-    if (type!="digraph"){cout<<"Error: Unknown type of digraph: "<<type<<endl;exit(1);}
-    DigraphTable GT(filename,g); // Read the graph (only nodes and edges)
-    bool ok = GT.GetColumn("nodename",vname);
-    ok = ok && GT.GetColumn("weight",weight);
-    ok = ok && GetNodeCoordinates(GT,"posx",posx,"posy",posy);
-    return(ok);
+    if (type != "digraph") {
+        cout << "Error: Unknown type of digraph: " << type << endl;
+        exit(1);
+    }
+    DigraphTable GT(filename, g);// Read the graph (only nodes and edges)
+    bool ok = GT.GetColumn("nodename", vname);
+    ok = ok && GT.GetColumn("weight", weight);
+    ok = ok && GetNodeCoordinates(GT, "posx", posx, "posy", posy);
+    return (ok);
 }
-
 
 
 //Generate a random complete euclidean Graph
