@@ -33,8 +33,9 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     }
 
     // ILP problem variables: ----------------------------------------------------
-    const int max_D = P.nnodes - 1;                           // maximum possible diameter/degree
-    const int T_MAX = (int) (2.0 * max_D * ceil(log2(max_D)));// makespan UB (greedy tree based scheduling)
+    const int max_D = P.nnodes - 1;                     // maximum possible diameter/degree
+    int T_MAX = (int) (2.0 * max_D * ceil(log2(max_D)));// makespan UB (greedy tree based scheduling)
+    // T_MAX += max_D;                                     //make room for source swarm reunion
     cout << "-> T_MAX - " << T_MAX << endl;
     auto q_t_v = new Graph::NodeMap<GRBVar> *[T_MAX]; // quantity of active robots in the node v at time t
     auto a_t_v = new Graph::NodeMap<GRBVar> *[T_MAX]; // if the node v has already been visited at time t
@@ -60,6 +61,9 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
 
     // ILP problem restrictions: -------------------------------------------------
     cout << "Adding the model restrictions:" << endl;
+
+    /*model.addConstr((*q_t_v[T_MAX - 1])[P.source] == P.nnodes);
+    cout << "-> all robots goes to the sorce in the end - " << 1 << " constrs" << endl;*/
 
     int constrCount = 0;
     for (NodeIt v(P.g); v != INVALID; ++v, constrCount += 2) {
@@ -103,9 +107,15 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "-> a node becomes active only after receiving an active robot - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
+    for (int t = 0; t < T_MAX - 1; t++)
+        for (NodeIt v(P.g); v != INVALID; ++v, constrCount++)
+            model.addConstr((*q_t_v[t + 1])[v] >= 2 * ((*a_t_v[t + 1])[v] - (*a_t_v[t])[v]));
+    cout << "-> at activation there are at least two active robots in a node - " << constrCount << " constrs" << endl;
+
+    constrCount = 0;
     for (NodeIt v(P.g); v != INVALID; ++v) {
         if (v == P.source) continue;
-        for (int t = 0; t < T_MAX; t++, constrCount++) model.addConstr((*q_t_v[t])[v] <= P.nnodes * (*a_t_v[t])[v]);
+        for (int t = 1; t < T_MAX; t++, constrCount++) model.addConstr((*q_t_v[t])[v] <= P.nnodes * (*a_t_v[t])[v]);
     }
     cout << "-> a node can only have active robots after being activated - " << constrCount << " constrs" << endl;
 
@@ -134,7 +144,8 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
                 auto u = P.g.oppositeNode(v, e);
                 neighborhood_sum += (*q_t_v[t])[u];
             }
-            model.addConstr((*q_t_v[t + 1])[v] <= (*q_t_v[t])[v] + neighborhood_sum);
+            GRBLinExpr new_active = (*a_t_v[t + 1])[v] - (*a_t_v[t])[v];// a node gain an active robot after activation
+            model.addConstr((*q_t_v[t + 1])[v] <= (*q_t_v[t])[v] + neighborhood_sum + new_active);
         }
     cout << "-> the robots moves acording to the nodes neighborhoods - " << constrCount << " constrs" << endl;
 
