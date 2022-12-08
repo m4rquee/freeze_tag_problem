@@ -49,10 +49,11 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
         q_t_v[t] = new Graph::NodeMap<GRBVar>(P.g);
         a_t_v[t] = new Graph::NodeMap<GRBVar>(P.g);
         for (NodeIt v(P.g); v != INVALID; ++v) {
+            bool is_source = v == P.source;// the source node is always active
             sprintf(name, "q_%d_%s", t, P.vname[v].c_str());
             (*q_t_v[t])[v] = model.addVar(0.0, P.nnodes, 0.0, GRB_INTEGER, name);
             sprintf(name, "a_%d_%s", t, P.vname[v].c_str());
-            (*a_t_v[t])[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
+            (*a_t_v[t])[v] = model.addVar(is_source, 1.0, 0.0, GRB_BINARY, name);
         }
     }
     model.update();// run update to use model inserted variables
@@ -64,20 +65,34 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (NodeIt v(P.g); v != INVALID; ++v, constrCount += 2) {
         bool is_source = v == P.source;
         model.addConstr((*q_t_v[0])[v] == is_source);
-        model.addConstr((*a_t_v[0])[v] == is_source);
+        if (is_source) {
+            constrCount--;
+            continue;
+        }
+        model.addConstr((*a_t_v[0])[v] == 0);
     }
     cout << "-> in the begining there is only one active robot at the source - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (int t = 0; t < T_MAX - 1; t++, constrCount++) {
         model.addConstr(f_t[t + 1] >= f_t[t]);
-        for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr((*a_t_v[t + 1])[v] >= (*a_t_v[t])[v]);
+        for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
+            if (v == P.source) {
+                constrCount--;
+                continue;
+            }
+            model.addConstr((*a_t_v[t + 1])[v] >= (*a_t_v[t])[v]);
+        }
     }
     cout << "-> after activated/finished remains activated/finished - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (int t = 0; t < T_MAX - 1; t++)
         for (NodeIt v(P.g); v != INVALID; ++v, constrCount++) {
+            if (v == P.source) {
+                constrCount--;
+                continue;
+            }
             GRBLinExpr neighborhood_sum = 0;
             for (IncEdgeIt e(P.g, v); e != INVALID; ++e) {
                 auto u = P.g.oppositeNode(v, e);
@@ -88,8 +103,10 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "-> a node becomes active only after receiving an active robot - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
-    for (NodeIt v(P.g); v != INVALID; ++v)
+    for (NodeIt v(P.g); v != INVALID; ++v) {
+        if (v == P.source) continue;
         for (int t = 0; t < T_MAX; t++, constrCount++) model.addConstr((*q_t_v[t])[v] <= P.nnodes * (*a_t_v[t])[v]);
+    }
     cout << "-> a node can only have active robots after being activated - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
@@ -101,7 +118,7 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "-> if finished then all robots are active - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
-    for (int t = 0; t < T_MAX; t++, constrCount++) {
+    for (int t = 1; t < T_MAX; t++, constrCount++) {
         GRBLinExpr expr = 0;
         // active robots + one if the node has an inactive one
         for (NodeIt v(P.g); v != INVALID; ++v) expr += (*q_t_v[t])[v] + (1 - (*a_t_v[t])[v]);
