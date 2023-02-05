@@ -11,15 +11,21 @@ const long unsigned seed = 42;// seed to the random number generator
 bool solve(FTP_Instance &P, double &LB, double &UB) {
     P.start_counter();
 
+    // Compute the makespan upper bound:
+    const int max_D = P.nnodes - 1;                     // maximum possible diameter/degree
+    int T_MAX = (int) (2.0 * max_D * ceil(log2(max_D)));// makespan UB (greedy tree based scheduling)
+    // T_MAX += max_D;                                     // make room for source reunion
+    UB = min(UB, (double) T_MAX);
+    T_MAX = UB;
+
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
-    env->set(GRB_DoubleParam_Cutoff, UB);// set the know UB
+    env->set(GRB_DoubleParam_Cutoff, UB);// set the best know UB
     GRBModel model = GRBModel(*env);
     model.set(GRB_StringAttr_ModelName, "Freeze-Tag Problem");
     model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
-    model.set(GRB_IntParam_Seed, seed);
 
     // ILP solver parameters: ----------------------------------------------------
     if (P.nnodes >= 20) {// focus only on new UBs
@@ -33,14 +39,9 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     }
 
     // ILP problem variables: ----------------------------------------------------
-    const int max_D = P.nnodes - 1;                     // maximum possible diameter/degree
-    int T_MAX = (int) (2.0 * max_D * ceil(log2(max_D)));// makespan UB (greedy tree based scheduling)
-    // T_MAX += max_D;                                     //make room for source swarm reunion
-    cout << "-> T_MAX - " << T_MAX << endl;
-    auto q_t_v = new Graph::NodeMap<GRBVar> *[T_MAX]; // quantity of active robots in the node v at time t
-    auto a_t_v = new Graph::NodeMap<GRBVar> *[T_MAX]; // if the node v has already been visited at time t
-    auto f_t = new GRBVar[T_MAX];                     // if the scheduling is finished by time t
-    model.addVar(T_MAX, T_MAX, 1.0, GRB_INTEGER, "n");// add n to the cost
+    auto q_t_v = new Graph::NodeMap<GRBVar> *[T_MAX];// quantity of active robots in node v at time t
+    auto a_t_v = new Graph::NodeMap<GRBVar> *[T_MAX];// if node v has already been visited at time t
+    auto f_t = new GRBVar[T_MAX];                    // if the scheduling is finished by time t
 
     for (int t = 0; t < T_MAX; t++) {
         char name[100];
@@ -63,7 +64,7 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "Adding the model restrictions:" << endl;
 
     /*model.addConstr((*q_t_v[T_MAX - 1])[P.source] == P.nnodes);
-    cout << "-> all robots goes to the sorce in the end - " << 1 << " constrs" << endl;*/
+    cout << "->  in the end all robots must get together in source - " << 1 << " constrs" << endl;*/
 
     int constrCount = 0;
     for (NodeIt v(P.g); v != INVALID; ++v, constrCount += 2) {
@@ -75,7 +76,7 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
         }
         model.addConstr((*a_t_v[0])[v] == 0);
     }
-    cout << "-> in the begining there is only one active robot at the source - " << constrCount << " constrs" << endl;
+    cout << "-> in the beginning there is only one active robot at the source - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (int t = 0; t < T_MAX - 1; t++, constrCount++) {
@@ -147,19 +148,21 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
             GRBLinExpr new_active = (*a_t_v[t + 1])[v] - (*a_t_v[t])[v];// a node gain an active robot after activation
             model.addConstr((*q_t_v[t + 1])[v] <= (*q_t_v[t])[v] + neighborhood_sum + new_active);
         }
-    cout << "-> the robots moves acording to the nodes neighborhoods - " << constrCount << " constrs" << endl;
+    cout << "-> the robots moves according to the nodes neighborhoods - " << constrCount << " constrs" << endl;
 
     // ILP solving: --------------------------------------------------------------
-    model.optimize();                                // trys to solve optimally within the time limit
-    LB = max(LB, model.get(GRB_DoubleAttr_ObjBound));// updates the LB
+    model.optimize();// trys to solve optimally within the time limit
+
+    LB = max(LB, model.get(GRB_DoubleAttr_ObjBound) + T_MAX);// the cost constant is added
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
-    if (improved) {// a better solution was found
-        UB = model.getObjective().getValue();
+    if (improved) {                                      // a better solution was found
+        UB = model.getObjective().getValue() + T_MAX;    // the cost constant is added
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
             LB = UB;
     }
     cout << "New LB - " << LB << endl;
 
+    // Display the best know solution:
     cout << endl;
     for (int t = 0; t < T_MAX; t++) {
         bool active = f_t[t].get(GRB_DoubleAttr_X) >= 1 - MY_EPS;
@@ -184,7 +187,7 @@ int main(int argc, char *argv[]) {
     Graph g;// graph declaration
     string graph_filename, source_node_name;
     NodeStringMap vname(g); // name of graph nodes
-    NodePosMap px(g), py(g);// xy-coodinates for each node
+    NodePosMap px(g), py(g);// xy-coordinates for each node
     NodeColorMap vcolor(g); // color of nodes
     EdgeStringMap ename(g); // name for graph edges
     EdgeColorMap ecolor(g); // color of edges
@@ -198,7 +201,8 @@ int main(int argc, char *argv[]) {
              << "Usage: " << argv[0] << "  <ftp_graph_filename> <maximum_time_sec>" << endl
              << endl;
         cout << "Example:" << endl
-             << "\t" << argv[0] << " " << getpath(argv[0]) + "../instances/ilp_5.dig 10" << endl
+             << "\t" << argv[0] << " "
+             << "../instances/small/tree-003.g 10" << endl
              << endl;
         exit(0);
     }
@@ -234,7 +238,7 @@ int main(int argc, char *argv[]) {
         cerr << "\nException: " << e.what() << endl;
         return 1;
     } catch (GRBException &e) {
-        cout << "custo: " << UB << endl;
+        cout << "cost: " << UB << endl;
         cerr << "\nGRBException: " << e.getMessage() << endl;
         return 1;
     }

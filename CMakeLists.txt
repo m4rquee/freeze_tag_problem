@@ -14,18 +14,19 @@ include_directories("include")
 include_directories("lemon/lemon-1.3.1/include")
 include_directories($ENV{GUROBI_HOME}/include)
 
-# Utils used in all targets
-add_library(graph_utils src/mygraphlib.cpp src/geompack.cpp src/myutils.cpp
-        src/mycolor.cpp src/ftp_utils.cpp)
-
 # Lemon lib directory
-link_directories(${CMAKE_SOURCE_DIR}/lemon/lemon-1.3.1/lib)
+link_directories(${CMAKE_SOURCE_DIR}/lemon/lemon-1.3.1/build/lemon)
 
 # Gurobi lib directory
 link_directories($ENV{GUROBI_HOME}/lib)
 
+# Utils used in all targets
+add_library(graph_utils src/mygraphlib.cpp src/geompack.cpp src/myutils.cpp
+        src/mycolor.cpp src/ftp_utils.cpp)
+link_libraries(graph_utils -l:libemon.a) # link the lemon binary
+
 # Compiler flags
-set(CMAKE_CXX_FLAGS "-Wall -Wunused-local-typedefs -lemon")
+set(CMAKE_CXX_FLAGS "-Wall -Wunused-local-typedefs")
 
 # Target executable and linking
 add_executable(ftp_ilp src/ftp_ilp.cpp)

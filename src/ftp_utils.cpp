@@ -7,8 +7,7 @@ FTP_Instance::FTP_Instance(Graph &graph, NodeStringMap &vvname, NodePosMap &posx
 void FTP_Instance::start_counter() { start = chrono::system_clock::now(); }
 
 void PrintInstanceInfo(FTP_Instance &P) {
-    cout << endl << endl;
-    cout << "Pickup Delivery Graph Informations" << endl;
+    cout << "Freeze-Tag graph information" << endl;
     cout << "\tTime limit = " << P.time_limit << "s" << endl;
     cout << "\tSource = " << P.vname[P.source] << endl;
     cout << endl;
