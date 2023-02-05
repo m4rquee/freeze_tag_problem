@@ -7,12 +7,11 @@ project(Freeze_Tag_Problem_ILP
 set(CMAKE_CXX_STANDARD 14)
 
 # Set a default build type if none was specified
-set(default_build_type "Release")
+# set(default_build_type "Release")
 
 # Headers directories
 include_directories("include")
 include_directories("lemon/lemon-1.3.1/include")
-include_directories("brkga/src")
 include_directories($ENV{GUROBI_HOME}/include)
 
 # Utils used in all targets
@@ -26,11 +25,10 @@ link_directories(${CMAKE_SOURCE_DIR}/lemon/lemon-1.3.1/lib)
 link_directories($ENV{GUROBI_HOME}/lib)
 
 # Compiler flags
-set(CMAKE_CXX_FLAGS "-m64 -Ofast -Wall -Wunused-local-typedefs -lemon -fopenmp")
+set(CMAKE_CXX_FLAGS "-Wall -Wunused-local-typedefs -lemon")
 
 # Target executable and linking
 add_executable(ftp_ilp src/ftp_ilp.cpp)
-target_link_libraries(ftp_ilp m)
-target_link_libraries(ftp_ilp pthread)
+target_link_libraries(ftp_ilp m pthread)
 target_link_libraries(ftp_ilp graph_utils)
-target_link_libraries(ftp_ilp gurobi_c++ gurobi95)
+target_link_libraries(ftp_ilp gurobi_c++ gurobi100)
