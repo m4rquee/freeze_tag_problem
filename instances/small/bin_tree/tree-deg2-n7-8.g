@@ -1,0 +1,17 @@
+nnodes nedges type
+7 6 graph
+nodename posx posy
+0 0 0
+1 1 1
+2 2 2
+3 3 3
+4 4 3
+5 5 1
+6 6 2
+endpoint1 endpoint2 weight
+0 1 1
+1 2 1
+2 3 1
+2 4 1
+0 5 1
+5 6 1

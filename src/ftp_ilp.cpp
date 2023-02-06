@@ -225,12 +225,8 @@ int main(int argc, char *argv[]) {
     PrintInstanceInfo(P);
 
     try {
-        bool improved = solve(P, LB, UB);
-
-        cerr << LB << ' ' << UB;
-
-        if (improved) {
-            ViewFTPSolution(P, LB, UB, "Solution found.");
+        if (solve(P, LB, UB)) {
+            ViewFTPSolution(P, LB, UB, " Best solution found.");
             cout << "cost: " << UB << endl;
         }
     } catch (std::exception &e) {
