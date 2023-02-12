@@ -7,7 +7,7 @@ project(Freeze_Tag_Problem_ILP
 set(CMAKE_CXX_STANDARD 14)
 
 # Set a default build type if none was specified
-# set(default_build_type "Release")
+set(default_build_type "Release")
 
 # Headers directories
 include_directories("include")
@@ -27,9 +27,14 @@ link_libraries(graph_utils -l:libemon.a) # link the lemon binary
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "-Wall -Wunused-local-typedefs")
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    MESSAGE("Activating -Ofast optimizations")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast")
+endif ()
 
 # Target executable and linking
-add_executable(ftp_ilp src/ftp_ilp.cpp)
+# add_executable(ftp_ilp src/ftp_ilp_edges.cpp)
+add_executable(ftp_ilp src/ftp_ilp_qntd.cpp)
 target_link_libraries(ftp_ilp m pthread)
 target_link_libraries(ftp_ilp graph_utils)
 target_link_libraries(ftp_ilp gurobi_c++ gurobi100)
