@@ -3,8 +3,7 @@
 
 #include "mygraphlib.hpp"
 #include <chrono>
-#include <lemon/min_cost_arborescence.h>
-#include <queue>
+#include <lemon/dijkstra.h>
 
 #define ELAPSED ((chrono::system_clock::now() - P.start).count() / 1E9)
 #define _NEW_UB_MESSAGE(SOL, MSG)                                                                                      \
@@ -18,30 +17,37 @@ using namespace lemon;
 using namespace std;
 
 typedef chrono::time_point<chrono::system_clock> time_point;
-typedef vector<Node> NodeVector;
+typedef vector<DNode> DNodeVector;
+typedef vector<Arc> ArcVector;
+typedef Dijkstra<Digraph, ArcValueMap> DijkstraSolver;
 
 // FTP_Instance put all relevant information in one class.
 class FTP_Instance {
 public:
-    FTP_Instance(Graph &graph, NodeStringMap &vvname, NodePosMap &posx, NodePosMap &posy, Node &sourcenode, int &nnodes,
-                 int &time_limit);
+    FTP_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy, DNode &sourcenode,
+                 int &nnodes, int &time_limit, ArcValueMap &weight, ArcBoolMap &original);
+    ~FTP_Instance();
     void start_counter();
 
-    Graph &g;
-    NodeStringMap &vname;
-    NodePosMap &px;
-    NodePosMap &py;
-    const int nnodes;
-    Node &source;
+    Digraph &g;
+    DNodeStringMap &vname;
+    DNodePosMap &px;
+    DNodePosMap &py;
+    int nnodes;
+    DNode &source;
     time_point start;
     const int time_limit;
+    ArcValueMap &weight;
+    ArcBoolMap &original;
+    Arc *solution;
 };
 
 void PrintInstanceInfo(FTP_Instance &P);
-void PrintSolution(FTP_Instance &P, NodeVector &Sol, const string &msg);
 
-bool ReadFTPGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
-                  Node &source, int &nnodes);
+void PrintSolution(FTP_Instance &P, ArcVector &Sol, const string &msg);
+
+bool ReadFTPGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
+                  DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, bool calc_clojure = false);
 
 bool ViewFTPSolution(FTP_Instance &P, double &LB, double &UB, const string &msg);
 

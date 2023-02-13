@@ -311,6 +311,10 @@ Node GetNodeByName(Graph &g,
                    NodeStringMap  &vname, // name of the nodes
                    string vertexname);
 
+DNode GetDNodeByName(Digraph &g,
+                   DNodeStringMap  &vname, // name of the nodes
+                   string vertexname);
+
 // Return true if the edge vector is integer
 inline bool IsInteger(Graph &g, EdgeValueMap &vx)
 {for(EdgeIt e(g);e!=INVALID; ++e) if(IsFrac(vx[e]))return false; return(true);}

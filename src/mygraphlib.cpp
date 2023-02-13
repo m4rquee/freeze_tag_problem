@@ -103,6 +103,17 @@ Node GetNodeByName(Graph &g,
     exit(0);
 }
 
+DNode GetDNodeByName(Digraph &g,
+                   DNodeStringMap  &vname, // name of the nodes
+                   string vertexname)
+{
+    for (DNodeIt v(g); v!=INVALID; ++v) {
+        if (vname[v]==vertexname) return(v);
+    }
+    cout << "GetNodeByName: Error to obtain vertex node \"" << vertexname << "\"" << endl;
+    exit(0);
+}
+
 // This routine uses a graphiz program to generate positions.
 bool GenerateVertexPositions(Graph &g,
                              EdgeValueMap &custo,

@@ -33,8 +33,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif ()
 
 # Target executable and linking
-# add_executable(ftp_ilp src/ftp_ilp_edges.cpp)
-add_executable(ftp_ilp src/ftp_ilp_qntd.cpp)
+add_executable(ftp_ilp src/ftp_ilp_edges.cpp)
+# add_executable(ftp_ilp src/ftp_ilp_qntd.cpp)
 target_link_libraries(ftp_ilp m pthread)
 target_link_libraries(ftp_ilp graph_utils)
 target_link_libraries(ftp_ilp gurobi_c++ gurobi100)
