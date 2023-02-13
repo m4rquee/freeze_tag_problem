@@ -35,6 +35,10 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the wake-up tree
     Digraph::NodeMap<GRBVar> t_v(P.g);// activation time of node v
 
+    auto MAX_EDGE = 0.0;
+    for (ArcIt e(P.g); e != INVALID; ++e) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
+    MY_INF = P.nnodes * MAX_EDGE;
+
     auto makespan = model.addVar(0.0, MY_INF, 1.0, GRB_INTEGER, "makespan");// wake-up tree's makespan
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
@@ -100,7 +104,8 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
 
     LB = max(LB, model.get(GRB_DoubleAttr_ObjBound));
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
-    if (improved) {                                      // a better solution was found
+    if (improved) {// a better solution was found
+        UB = model.get(GRB_DoubleAttr_ObjVal);
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
             LB = UB;
     }
