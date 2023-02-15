@@ -17,7 +17,8 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (ArcIt e(P.g); e != INVALID; ++e)
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
     MY_INF = P.nnodes * MAX_EDGE;
-    UB = min(UB, ceil(2 * MAX_EDGE * log2(P.nnodes)));
+    UB = MAX_EDGE * min(UB, ceil(2 * MAX_EDGE * log2(P.nnodes)));
+    cout << "Set parameter MAX_EDGE to value " << MAX_EDGE << endl;
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
@@ -40,15 +41,14 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     }
 
     // ILP problem variables: ----------------------------------------------------
-    Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the wake-up tree
-    Digraph::NodeMap<GRBVar> t_v(P.g);// activation time of node v
-
-    auto makespan = model.addVar(LB, UB, 1.0, GRB_INTEGER, "makespan");// wake-up tree's makespan
+    Digraph::ArcMap<GRBVar> x_e(P.g);                                       // if arc e is present in the wake-up tree
+    Digraph::NodeMap<GRBVar> t_v(P.g);                                      // activation time of node v
+    auto makespan = model.addVar(LB, UB, MAX_EDGE, GRB_INTEGER, "makespan");// wake-up tree's makespan
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
         sprintf(name, "x_(%s,%s)", P.vname[P.g.source(e)].c_str(), P.vname[P.g.target(e)].c_str());
-        x_e[e] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
+        x_e[e] = model.addVar(0.0, 1.0, 1.0, GRB_BINARY, name);
     }
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
@@ -117,10 +117,10 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     // ILP solving: --------------------------------------------------------------
     model.optimize();// trys to solve optimally within the time limit
 
-    LB = max(LB, model.get(GRB_DoubleAttr_ObjBound));
+    LB = max(LB, floor(model.get(GRB_DoubleAttr_ObjBound) / MAX_EDGE));
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
     if (improved) {// a better solution was found
-        UB = model.get(GRB_DoubleAttr_ObjVal);
+        UB = floor(model.get(GRB_DoubleAttr_ObjVal) / MAX_EDGE);
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
             LB = UB;
     }
