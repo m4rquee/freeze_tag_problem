@@ -102,6 +102,17 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     cout << "-> a node is activated at its parent time plus the time to get to it - " << constrCount << " constrs"
          << endl;
 
+    constrCount = 0;
+    for (DNodeIt u(P.g); u != INVALID; ++u)
+        for (OutArcIt e(P.g, u); e != INVALID; ++e) {
+            DNode v = P.g.target(e);
+            if (P.g.id(u) < P.g.id(v)) {
+                constrCount++;
+                model.addConstr(x_e[e] + x_e[findArc(P.g, v, u)] <= 1);
+            }
+        }
+    cout << "-> only one of a parallel arc pair is allowed - " << constrCount << " constrs" << endl;
+
 
     // ILP solving: --------------------------------------------------------------
     model.optimize();// trys to solve optimally within the time limit

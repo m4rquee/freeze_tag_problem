@@ -1,10 +1,10 @@
 Format for graphs (the node zero is the source):
 
-# GRAPH: (file.g)
-nnodes   nedges    type
-   110    1000    graph
+# DIGRAPH: (file.dig)
+nnodes   narcs      type
+   110    1000   digraph
 0 posx posy
 nodename posx posy
 ...
-endpoint1 endpoint2 weight
+tail head weight
 ...
