@@ -22,7 +22,7 @@ void PrintInstanceInfo(FTP_Instance &P) {
 
 bool ReadFTPGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
                   DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
-                  bool calc_clojure) {
+                  bool calc_clojure, bool tsplib) {
     if (!ReadDigraph(filename, g, vname, posx, posy, weight)) return false;
     nnodes = countNodes(g);
     source = GetDNodeByName(g, vname, "0");

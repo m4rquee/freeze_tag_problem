@@ -49,7 +49,7 @@ void PrintSolution(FTP_Instance &P, ArcVector &Sol, const string &msg);
 
 bool ReadFTPGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
                   DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
-                  bool calc_clojure = false);
+                  bool calc_clojure = false, bool tsplib = false);
 
 bool ViewFTPSolution(FTP_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges);
 

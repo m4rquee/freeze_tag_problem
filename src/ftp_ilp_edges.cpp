@@ -149,7 +149,7 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
 
 int main(int argc, char *argv[]) {
     int maxtime;
-    bool only_active_edges = true;
+    bool only_active_edges = true, tsplib = false;
     Digraph g;// graph declaration
     string graph_filename, source_node_name;
     DNodeStringMap vname(g); // name of graph nodes
@@ -177,16 +177,17 @@ int main(int argc, char *argv[]) {
 
     graph_filename = argv[1];
     maxtime = atoi(argv[2]);
-    if (argc >= 4) only_active_edges = atoi(argv[3]);
+    if (argc >= 4) tsplib = atoi(argv[3]);
+    if (argc >= 5) only_active_edges = atoi(argv[4]);
     MY_EPS = 1E-1;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
-    if (argc >= 5) LB = atof(argv[4]);
-    if (argc >= 6) UB = atof(argv[5]);
+    if (argc >= 6) LB = atof(argv[5]);
+    if (argc >= 7) UB = atof(argv[6]);
     DNode source;
 
     int nnodes;
     double source_radius;
-    if (!ReadFTPGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true)) {
+    if (!ReadFTPGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true, tsplib)) {
         cout << "Error while reding the input graph." << endl;
         exit(EXIT_FAILURE);
     }
