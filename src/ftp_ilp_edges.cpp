@@ -11,6 +11,14 @@ const long unsigned seed = 42;// seed to the random number generator
 bool solve(FTP_Instance &P, double &LB, double &UB) {
     P.start_counter();
 
+    // Calculates the best know objective bounds:
+    LB = max(LB, P.source_radius);
+    auto MAX_EDGE = 0.0;
+    for (ArcIt e(P.g); e != INVALID; ++e)
+        if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
+    MY_INF = P.nnodes * MAX_EDGE;
+    UB = min(UB, ceil(2 * MAX_EDGE * log2(P.nnodes)));
+
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
@@ -26,20 +34,16 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
         model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
         model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
         model.set(GRB_IntParam_MinRelNodes, 500);
-        model.set(GRB_IntParam_PumpPasses, 5000);
+        model.set(GRB_IntParam_PumpPasses, 10);
         model.set(GRB_IntParam_ZeroObjNodes, 500);
-        model.set(GRB_DoubleParam_Heuristics, 0.3);
+        model.set(GRB_DoubleParam_Heuristics, 0.01);
     }
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the wake-up tree
     Digraph::NodeMap<GRBVar> t_v(P.g);// activation time of node v
 
-    auto MAX_EDGE = 0.0;
-    for (ArcIt e(P.g); e != INVALID; ++e) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
-    MY_INF = P.nnodes * MAX_EDGE;
-
-    auto makespan = model.addVar(0.0, MY_INF, 1.0, GRB_INTEGER, "makespan");// wake-up tree's makespan
+    auto makespan = model.addVar(LB, UB, 1.0, GRB_INTEGER, "makespan");// wake-up tree's makespan
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
@@ -49,7 +53,7 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
         sprintf(name, "t_%s", P.vname[v].c_str());
-        t_v[v] = model.addVar(0.0, MY_INF, 0.0, GRB_INTEGER, name);
+        t_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
     }
     model.update();// run update to use model inserted variables
 
@@ -134,6 +138,7 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
 
 int main(int argc, char *argv[]) {
     int maxtime;
+    bool only_active_edges = true;
     Digraph g;// graph declaration
     string graph_filename, source_node_name;
     DNodeStringMap vname(g); // name of graph nodes
@@ -161,32 +166,34 @@ int main(int argc, char *argv[]) {
 
     graph_filename = argv[1];
     maxtime = atoi(argv[2]);
+    if (argc >= 4) only_active_edges = atoi(argv[3]);
     MY_EPS = 1E-1;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
-    if (argc >= 4) LB = atof(argv[3]);
-    if (argc >= 5) UB = atof(argv[4]);
+    if (argc >= 5) LB = atof(argv[4]);
+    if (argc >= 6) UB = atof(argv[5]);
     DNode source;
 
     int nnodes;
-    if (!ReadFTPGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, true)) {
+    double source_radius;
+    if (!ReadFTPGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true)) {
         cout << "Error while reding the input graph." << endl;
         exit(EXIT_FAILURE);
     }
 
-    FTP_Instance P(g, vname, px, py, source, nnodes, maxtime, weight, original);
+    FTP_Instance P(g, vname, px, py, source, nnodes, maxtime, weight, original, source_radius);
     PrintInstanceInfo(P);
 
     try {
         if (solve(P, LB, UB)) {
-            ViewFTPSolution(P, LB, UB, " Best solution found.");
-            cout << "cost: " << UB << endl;
+            ViewFTPSolution(P, LB, UB, " Best solution found.", only_active_edges);
+            cout << "UB cost: " << UB << endl;
         }
     } catch (std::exception &e) {
-        cout << "cost: " << UB << endl;
+        cout << "UB cost: " << UB << endl;
         cerr << "\nException: " << e.what() << endl;
         return 1;
     } catch (GRBException &e) {
-        cout << "cost: " << UB << endl;
+        cout << "UB cost: " << UB << endl;
         cerr << "\nGRBException: " << e.getMessage() << endl;
         return 1;
     }

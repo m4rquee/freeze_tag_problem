@@ -25,7 +25,7 @@ typedef Dijkstra<Digraph, ArcValueMap> DijkstraSolver;
 class FTP_Instance {
 public:
     FTP_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy, DNode &sourcenode,
-                 int &nnodes, int &time_limit, ArcValueMap &weight, ArcBoolMap &original);
+                 int &nnodes, int &time_limit, ArcValueMap &weight, ArcBoolMap &original, double &source_radius);
     ~FTP_Instance();
     void start_counter();
 
@@ -40,6 +40,7 @@ public:
     ArcValueMap &weight;
     ArcBoolMap &original;
     Arc *solution;
+    double &source_radius;
 };
 
 void PrintInstanceInfo(FTP_Instance &P);
@@ -47,8 +48,9 @@ void PrintInstanceInfo(FTP_Instance &P);
 void PrintSolution(FTP_Instance &P, ArcVector &Sol, const string &msg);
 
 bool ReadFTPGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                  DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, bool calc_clojure = false);
+                  DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
+                  bool calc_clojure = false);
 
-bool ViewFTPSolution(FTP_Instance &P, double &LB, double &UB, const string &msg);
+bool ViewFTPSolution(FTP_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges);
 
 #endif// FTP_UTILS_DEFINE
