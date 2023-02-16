@@ -22,7 +22,7 @@ link_directories($ENV{GUROBI_HOME}/lib)
 
 # Utils used in all targets
 add_library(graph_utils src/mygraphlib.cpp src/geompack.cpp src/myutils.cpp
-        src/mycolor.cpp src/ftp_utils.cpp)
+        src/mycolor.cpp src/problem_utils.cpp)
 link_libraries(graph_utils -l:libemon.a) # link the lemon binary
 
 # Compiler flags
@@ -33,8 +33,12 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif ()
 
 # Target executable and linking
-add_executable(ftp_ilp src/ftp_ilp_edges.cpp)
-# add_executable(ftp_ilp src/ftp_ilp_qntd.cpp)
-target_link_libraries(ftp_ilp m pthread)
-target_link_libraries(ftp_ilp graph_utils)
-target_link_libraries(ftp_ilp gurobi_c++ gurobi100)
+add_executable(solver_ilp src/solver_ilp.cpp)
+target_link_libraries(solver_ilp m pthread)
+target_link_libraries(solver_ilp graph_utils)
+target_link_libraries(solver_ilp gurobi_c++ gurobi100)
+
+#[[add_executable(ftp_qntd src/solver_ilp_ftp_qntd.cpp)
+target_link_libraries(ftp_qntd m pthread)
+target_link_libraries(ftp_qntd graph_utils)
+target_link_libraries(ftp_qntd gurobi_c++ gurobi100)]]

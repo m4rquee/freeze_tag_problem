@@ -1,5 +1,5 @@
-#include "ftp_utils.hpp"
 #include "gurobi_c++.h"
+#include "problem_utils.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -8,7 +8,7 @@
 
 const long unsigned seed = 42;// seed to the random number generator
 
-bool solve(FTP_Instance &P, double &LB, double &UB) {
+bool solve(Problem_Instance &P, double &LB, double &UB) {
     P.start_counter();
 
     // Compute the makespan upper bound:
@@ -216,17 +216,17 @@ int main(int argc, char *argv[]) {
     Node source;
 
     int nnodes;
-    if (!ReadFTPGraph(graph_filename, g, vname, px, py, source, nnodes)) {
+    if (!ReadProblemGraph(graph_filename, g, vname, px, py, source, nnodes)) {
         cout << "Error while reding the input graph." << endl;
         exit(EXIT_FAILURE);
     }
 
-    FTP_Instance P(g, vname, px, py, source, nnodes, maxtime);
+    Problem_Instance P(g, vname, px, py, source, nnodes, maxtime);
     PrintInstanceInfo(P);
 
     try {
         if (solve(P, LB, UB)) {
-            ViewFTPSolution(P, LB, UB, " Best solution found.");
+            ViewProblemSolution(P, LB, UB, " Best solution found.", true);
             cout << "cost: " << UB << endl;
         }
     } catch (std::exception &e) {

@@ -1,5 +1,5 @@
-#ifndef FTP_UTILS_DEFINE
-#define FTP_UTILS_DEFINE
+#ifndef Problem_UTILS_DEFINE
+#define Problem_UTILS_DEFINE
 
 #include "mygraphlib.hpp"
 #include <chrono>
@@ -21,12 +21,12 @@ typedef vector<DNode> DNodeVector;
 typedef vector<Arc> ArcVector;
 typedef Dijkstra<Digraph, ArcValueMap> DijkstraSolver;
 
-// FTP_Instance put all relevant information in one class.
-class FTP_Instance {
+// Problem_Instance put all relevant information in one class.
+class Problem_Instance {
 public:
-    FTP_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy, DNode &sourcenode,
+    Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy, DNode &sourcenode,
                  int &nnodes, int &time_limit, ArcValueMap &weight, ArcBoolMap &original, double &source_radius);
-    ~FTP_Instance();
+    ~Problem_Instance();
     void start_counter();
 
     Digraph &g;
@@ -43,14 +43,14 @@ public:
     double &source_radius;
 };
 
-void PrintInstanceInfo(FTP_Instance &P);
+void PrintInstanceInfo(Problem_Instance &P);
 
-void PrintSolution(FTP_Instance &P, ArcVector &Sol, const string &msg);
+void PrintSolution(Problem_Instance &P, ArcVector &Sol, const string &msg);
 
-bool ReadFTPGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
+bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
                   DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
                   bool calc_clojure = false, bool tsplib = false);
 
-bool ViewFTPSolution(FTP_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges);
+bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges);
 
-#endif// FTP_UTILS_DEFINE
+#endif// Problem_UTILS_DEFINE

@@ -1,23 +1,30 @@
-#include "ftp_utils.hpp"
 #include "gurobi_c++.h"
+#include "problem_utils.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <lemon/list_graph.h>
 #include <string>
 
+// #define BDST// uncomment to generate a Degree-Bounded Minimum Diameter Spanning Tree solver
+
 const long unsigned seed = 42;// seed to the random number generator
 
-bool solve(FTP_Instance &P, double &LB, double &UB) {
+bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
     // Calculates the best know objective bounds:
-    LB = max(LB, P.source_radius);
+    if (P.source != INVALID) LB = max(LB, P.source_radius);// a source was defined
     auto MAX_EDGE = 0.0;
     for (ArcIt e(P.g); e != INVALID; ++e)
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
     MY_INF = P.nnodes * MAX_EDGE;
-    UB = MAX_EDGE * min(UB, ceil(2 * MAX_EDGE * log2(P.nnodes)));
+#ifdef BDST
+    double auxUB = MAX_EDGE * log(P.nnodes) / log(max_degree - 1);
+#else
+    double auxUB = 2 * MAX_EDGE * log2(P.nnodes));
+#endif
+    UB = MAX_EDGE * min(UB, ceil(auxUB));
     cout << "Set parameter MAX_EDGE to value " << MAX_EDGE << endl;
 
     // Gurobi ILP problem setup:
@@ -41,9 +48,12 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     }
 
     // ILP problem variables: ----------------------------------------------------
-    Digraph::ArcMap<GRBVar> x_e(P.g);                                       // if arc e is present in the wake-up tree
-    Digraph::NodeMap<GRBVar> t_v(P.g);                                      // activation time of node v
-    auto makespan = model.addVar(LB, UB, MAX_EDGE, GRB_INTEGER, "makespan");// wake-up tree's makespan
+    Digraph::ArcMap<GRBVar> x_e(P.g);                                   // if arc e is present in the tree
+    Digraph::NodeMap<GRBVar> h_v(P.g);                                  // height of node v
+    auto height = model.addVar(LB, UB, MAX_EDGE, GRB_INTEGER, "height");// tree's height
+#ifdef BDST
+    Digraph::NodeMap<GRBVar> r_v(P.g);//if node v is the root
+#endif
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
@@ -53,14 +63,27 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
         sprintf(name, "t_%s", P.vname[v].c_str());
-        t_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
+        h_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
+#ifdef BDST
+        sprintf(name, "s_%s", P.vname[v].c_str());
+        r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
+#endif
     }
     model.update();// run update to use model inserted variables
 
     // ILP problem restrictions: -------------------------------------------------
     cout << "Adding the model restrictions:" << endl;
 
+    // There is only one root:
+#ifdef BDST
+    GRBLinExpr one_source_expr;
+    for (DNodeIt v(P.g); v != INVALID; ++v) one_source_expr += r_v[v];
+    model.addConstr(one_source_expr == 1);
+    cout << "-> there is only one root - " << 1 << " constrs" << endl;
+#endif
+
     // The source is the root and has out-degree one:
+#ifndef BDST
     GRBLinExpr s_out_degree_expr;
     for (OutArcIt e(P.g, P.source); e != INVALID; ++e) s_out_degree_expr += x_e[e];
     model.addConstr(s_out_degree_expr == 1);
@@ -68,39 +91,59 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
     for (InArcIt e(P.g, P.source); e != INVALID; ++e) s_in_degree_expr += x_e[e];
     model.addConstr(s_in_degree_expr == 0);
     cout << "-> the source is the root and has out-degree one - " << 2 << " constrs" << endl;
+#endif
 
     int constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) {
+#ifndef BDST
         if (v == P.source) continue;
+#endif
         GRBLinExpr out_degree_expr, in_degree_expr;
         for (OutArcIt e(P.g, v); e != INVALID; ++e) out_degree_expr += x_e[e];
         for (InArcIt e(P.g, v); e != INVALID; ++e) in_degree_expr += x_e[e];
+#ifdef BDST
+        // The in-degree is one and the out-degree is at most max_degree - 1 for each internal node, and
+        // zero and max_degree respectively for the root:
+        model.addConstr(out_degree_expr <= max_degree - 1 + r_v[v]);
+        model.addConstr(in_degree_expr == 1 - r_v[v]);
+#else
         // The in-degree is one and the out-degree is at most two for each internal node:
         model.addConstr(out_degree_expr <= 2);
         model.addConstr(in_degree_expr == 1);
+#endif
         constrCount += 2;
     }
+#ifdef BDST
+    cout << "-> the in-degree is one and the out-degree is at most max_degree - 1 for each internal node, and"
+         << "\n   zero and max_degree respectively for the root - " << constrCount << " constrs" << endl;
+#else
     cout << "-> the in-degree is one and the out-degree is at most two for each internal node - " << constrCount
          << " constrs" << endl;
+#endif
 
     GRBLinExpr arc_sum_expr;
     for (ArcIt e(P.g); e != INVALID; ++e) arc_sum_expr += x_e[e];
     model.addConstr(arc_sum_expr == P.nnodes - 1);
     cout << "-> the number of arcs is n-1 for any tree - " << 1 << " constrs" << endl;
 
-    model.addConstr(t_v[P.source] == 0);
-    cout << "-> the root begins activated - " << 1 << " constrs" << endl;
+    if (P.source != INVALID) {
+        model.addConstr(h_v[P.source] == 0);
+        constrCount = 1;
+    } else {
+        constrCount = 0;
+        for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(h_v[v] <= UB * (1 - r_v[v]));
+    }
+    cout << "-> the root is at height zero - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
-    for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(makespan >= t_v[v]);
-    cout << "-> makespan is the last node is activation time - " << constrCount << " constrs" << endl;
+    for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(height >= h_v[v]);
+    cout << "-> the tree height is the maximum of each of its node's height - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
         for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount++)
-            model.addConstr(t_v[v] >= t_v[P.g.source(e)] + P.weight[e] + MY_INF * (x_e[e] - 1));
-    cout << "-> a node is activated at its parent time plus the time to get to it - " << constrCount << " constrs"
-         << endl;
+            model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (x_e[e] - 1));
+    cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (DNodeIt u(P.g); u != INVALID; ++u)
@@ -137,10 +180,11 @@ bool solve(FTP_Instance &P, double &LB, double &UB) {
         }
         if (!P.original[e] && !active) P.g.erase(e);
     }
-    cout << endl << "Nodes wakeup time: ";
+    cout << endl << "Nodes height: ";
     for (DNodeIt v(P.g); v != INVALID; ++v) {
-        int activation_time = ceil(t_v[v].get(GRB_DoubleAttr_X));
+        int activation_time = ceil(h_v[v].get(GRB_DoubleAttr_X));
         cout << P.vname[v].c_str() << '-' << activation_time << ";";
+        if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
     }
     cout << endl;
 
@@ -187,17 +231,21 @@ int main(int argc, char *argv[]) {
 
     int nnodes;
     double source_radius;
-    if (!ReadFTPGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true, tsplib)) {
+    if (!ReadProblemGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true,
+                          tsplib)) {
         cout << "Error while reding the input graph." << endl;
         exit(EXIT_FAILURE);
     }
 
-    FTP_Instance P(g, vname, px, py, source, nnodes, maxtime, weight, original, source_radius);
+    Problem_Instance P(g, vname, px, py, source, nnodes, maxtime, weight, original, source_radius);
     PrintInstanceInfo(P);
+#ifdef BDST
+    P.source = INVALID;
+#endif
 
     try {
         if (solve(P, LB, UB)) {
-            ViewFTPSolution(P, LB, UB, " Best solution found.", only_active_edges);
+            ViewProblemSolution(P, LB, UB, " Best solution found.", only_active_edges);
             cout << "UB cost: " << UB << endl;
         }
     } catch (std::exception &e) {
