@@ -14,7 +14,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
     // Calculates the best know objective bounds:
-    if (P.source != INVALID) LB = max(LB, P.source_radius);// a source was defined
+    LB = max(LB, P.source_radius);// the source radius if there is one or the graph`s radius
     auto MAX_EDGE = 0.0;
     for (ArcIt e(P.g); e != INVALID; ++e)
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
@@ -22,7 +22,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #ifdef BDST
     double auxUB = MAX_EDGE * log(P.nnodes) / log(max_degree - 1);
 #else
-    double auxUB = 2 * MAX_EDGE * log2(P.nnodes));
+    double auxUB = 2 * MAX_EDGE * log2(P.nnodes);
 #endif
     UB = MAX_EDGE * min(UB, ceil(auxUB));
     cout << "Set parameter MAX_EDGE to value " << MAX_EDGE << endl;
@@ -129,10 +129,13 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     if (P.source != INVALID) {
         model.addConstr(h_v[P.source] == 0);
         constrCount = 1;
-    } else {
+    }
+#ifdef BDST
+    else {
         constrCount = 0;
         for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(h_v[v] <= UB * (1 - r_v[v]));
     }
+#endif
     cout << "-> the root is at height zero - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
@@ -184,7 +187,9 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         int activation_time = ceil(h_v[v].get(GRB_DoubleAttr_X));
         cout << P.vname[v].c_str() << '-' << activation_time << ";";
+#ifdef BDST
         if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
+#endif
     }
     cout << endl;
 

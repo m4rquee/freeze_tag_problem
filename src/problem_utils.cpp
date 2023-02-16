@@ -1,8 +1,8 @@
 #include "problem_utils.hpp"
 
 Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy,
-                           DNode &sourcenode, int &nnodes, int &time_limit, ArcValueMap &pweight, ArcBoolMap &poriginal,
-                           double &psource_radius)
+                                   DNode &sourcenode, int &nnodes, int &time_limit, ArcValueMap &pweight,
+                                   ArcBoolMap &poriginal, double &psource_radius)
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
       weight(pweight), original(poriginal), source_radius(psource_radius) {
     solution = new Arc[nnodes];
@@ -21,8 +21,8 @@ void PrintInstanceInfo(Problem_Instance &P) {
 }
 
 bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                  DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
-                  bool calc_clojure, bool tsplib) {
+                      DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
+                      bool calc_clojure, bool tsplib) {
     if (!ReadDigraph(filename, g, vname, posx, posy, weight)) return false;
     nnodes = countNodes(g);
     source = GetDNodeByName(g, vname, "0");
@@ -30,13 +30,24 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
         for (ArcIt e(g); e != INVALID; ++e) original[e] = true;
 
         source_radius = 0.0;
+#ifdef BDST
+        double curr_radius;
+        source_radius = MY_INF;
+#endif
         // Run a Dijkstra using each node as source and them add an arc to each node with the distance:
         DijkstraSolver dijkstra_test(g, weight);
         for (DNodeIt u(g); u != INVALID; ++u) {
+#ifdef BDST
+            curr_radius = 0.0;
+#endif
             dijkstra_test.run(u);
             for (DNodeIt v(g); v != INVALID; ++v) {
                 if (u == v) continue;
+#ifdef BDST
+                curr_radius = max(curr_radius, dijkstra_test.dist(v));
+#else
                 if (v == source) source_radius = max(source_radius, dijkstra_test.dist(v));
+#endif
                 auto aux = findArc(g, u, v);
                 if (aux == INVALID) {// if this arc is not present then add it with the distance as weight
                     aux = g.addArc(u, v);
@@ -44,6 +55,9 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
                 }
                 weight[aux] = dijkstra_test.dist(v);
             }
+#ifdef BDST
+            source_radius = min(source_radius, curr_radius);
+#endif
         }
     }
     return true;
