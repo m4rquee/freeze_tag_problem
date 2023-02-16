@@ -1,5 +1,5 @@
-nnodes nedges type
-7 6 graph
+nnodes narcs type
+7 6 digraph
 nodename posx posy
 0 0 0
 1 1 1
@@ -8,7 +8,7 @@ nodename posx posy
 4 4 1
 5 5 2
 6 6 2
-endpoint1 endpoint2 weight
+tail head weight
 0 1 1
 1 2 1
 2 3 1
