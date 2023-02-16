@@ -2,6 +2,7 @@
 #include "problem_utils.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <lemon/list_graph.h>
 #include <string>
@@ -14,27 +15,31 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
     // Calculates the best know objective bounds:
-    LB = max(LB, P.source_radius);// the source radius if there is one or the graph`s radius
-    auto MAX_EDGE = 0.0;
-    for (ArcIt e(P.g); e != INVALID; ++e)
+    auto MAX_EDGE = 0.0, DIAMETER = 0.0;
+    for (ArcIt e(P.g); e != INVALID; ++e) {
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
-    MY_INF = P.nnodes * MAX_EDGE;
+        DIAMETER = max(DIAMETER, P.weight[e]);
+    }
 #ifdef BDST
-    double auxUB = MAX_EDGE * log(P.nnodes) / log(max_degree - 1);
+    double auxUB = P.source_radius * log(P.nnodes) / log(max_degree - 1);
 #else
-    double auxUB = 2 * MAX_EDGE * log2(P.nnodes);
+    double auxUB = 2 * P.source_radius * log2(P.nnodes);
 #endif
-    UB = MAX_EDGE * min(UB, ceil(auxUB));
+    LB = max(LB, P.source_radius);// the source radius if there is one or the graph`s radius
+    UB = min(UB, ceil(auxUB));
+    MAX_EDGE = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make the cost multiplier a tens power
+    MY_INF = P.nnodes * MAX_EDGE * MAX_EDGE;
     cout << "Set parameter MAX_EDGE to value " << MAX_EDGE << endl;
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
-    env->set(GRB_DoubleParam_Cutoff, UB);// set the best know UB
+    env->set(GRB_DoubleParam_Cutoff, UB * (MAX_EDGE + P.nnodes));// set the best know UB
     GRBModel model = GRBModel(*env);
     model.set(GRB_StringAttr_ModelName, "Freeze-Tag Problem");
     model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
+    model.set(GRB_DoubleParam_OptimalityTol, 1e-2);
 
     // ILP solver parameters: ----------------------------------------------------
     if (P.nnodes >= 20) {// focus only on new UBs
@@ -58,12 +63,12 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
         sprintf(name, "x_(%s,%s)", P.vname[P.g.source(e)].c_str(), P.vname[P.g.target(e)].c_str());
-        x_e[e] = model.addVar(0.0, 1.0, 1.0, GRB_BINARY, name);
+        x_e[e] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
     }
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
-        sprintf(name, "t_%s", P.vname[v].c_str());
-        h_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
+        sprintf(name, "h_%s", P.vname[v].c_str());
+        h_v[v] = model.addVar(0.0, UB, 1.0, GRB_INTEGER, name);
 #ifdef BDST
         sprintf(name, "s_%s", P.vname[v].c_str());
         r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
@@ -144,8 +149,10 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount++)
+        for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount++) {
             model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (x_e[e] - 1));
+            model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (1 - x_e[e]));
+        }
     cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
@@ -166,7 +173,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     LB = max(LB, floor(model.get(GRB_DoubleAttr_ObjBound) / MAX_EDGE));
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
     if (improved) {// a better solution was found
-        UB = floor(model.get(GRB_DoubleAttr_ObjVal) / MAX_EDGE);
+        UB = floor(height.get(GRB_DoubleAttr_X));
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
             LB = UB;
     }
@@ -226,8 +233,8 @@ int main(int argc, char *argv[]) {
 
     graph_filename = argv[1];
     maxtime = atoi(argv[2]);
-    if (argc >= 4) tsplib = atoi(argv[3]);
-    if (argc >= 5) only_active_edges = atoi(argv[4]);
+    if (argc >= 4) tsplib = strcmp(argv[3], "-tsplib=true") == 0;
+    if (argc >= 5) only_active_edges = strcmp(argv[3], "-only_active_edges=true") == 0;
     MY_EPS = 1E-1;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
     if (argc >= 6) LB = atof(argv[5]);
