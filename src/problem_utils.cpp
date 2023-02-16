@@ -20,14 +20,59 @@ void PrintInstanceInfo(Problem_Instance &P) {
     cout << endl;
 }
 
+inline double node_distance(DNode &u, DNode &v, DNodePosMap &posx, DNodePosMap &posy) {
+    return ceil(sqrt(pow(posx[u] - posx[v], 2) + pow(posy[u] - posy[v], 2)));
+}
+
+bool ReadTSPLIBDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
+                       ArcValueMap &weight) {
+    ifstream file;
+    file.open(filename.c_str());
+    if (!file) {
+        cout << "Error: Could not open file " << filename << "." << endl;
+        exit(0);
+    }
+
+    try {
+        string line;
+        do {// skip the header lines
+            std::getline(file, line);
+        } while (line != "NODE_COORD_SECTION");
+
+        int id, x, y;
+        for (std::getline(file, line); line != "EOF"; std::getline(file, line)) {
+            sscanf(line.c_str(), "%d %d %d", &id, &x, &y);
+            auto u = g.addNode();
+            vname[u] = to_string(id - 1);
+            posx[u] = x;
+            posy[u] = y;
+            DNodeIt v(g);
+            for (++v; v != INVALID; ++v) weight[g.addArc(u, v)] = node_distance(u, v, posx, posy);
+        }
+    } catch (...) { return false; }
+    return true;
+}
+
 bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
                       DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
                       bool calc_clojure, bool tsplib) {
-    if (!ReadDigraph(filename, g, vname, posx, posy, weight)) return false;
+    if (tsplib) {
+        if (!ReadTSPLIBDigraph(filename, g, vname, posx, posy, weight)) return false;
+    } else if (!ReadDigraph(filename, g, vname, posx, posy, weight))
+        return false;
     nnodes = countNodes(g);
     source = GetDNodeByName(g, vname, "0");
     if (calc_clojure) {
-        for (ArcIt e(g); e != INVALID; ++e) original[e] = true;
+        // Make the digraph strongly connected by adding each edge reverse:
+        int i = 0;
+        vector<Arc> original_edges(countArcs(g));
+        for (ArcIt e(g); e != INVALID; ++e, i++) original[original_edges[i] = e] = true;// mark the originals
+        for (i--; i >= 0; i--) {// make each edge a reverse arc pair
+            auto e = original_edges[i];
+            auto rev = g.addArc(g.target(e), g.source(e));
+            original[rev] = false;
+            weight[rev] = weight[e];
+        }
 
         source_radius = 0.0;
 #ifdef BDST
@@ -51,7 +96,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
                 auto aux = findArc(g, u, v);
                 if (aux == INVALID) {// if this arc is not present then add it with the distance as weight
                     aux = g.addArc(u, v);
-                    original[aux] = false;
+                    original[aux] = tsplib;
                 }
                 weight[aux] = dijkstra_test.dist(v);
             }
