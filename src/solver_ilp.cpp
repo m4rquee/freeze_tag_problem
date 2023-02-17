@@ -26,9 +26,9 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     double auxUB = 2 * P.source_radius * log2(P.nnodes);
 #endif
     LB = max(LB, P.source_radius);// the source radius if there is one or the graph`s radius
-    UB = min(UB, ceil(auxUB));
+    UB = max(LB, min(UB, ceil(auxUB)));
     MAX_EDGE = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make the cost multiplier a tens power
-    MY_INF = P.nnodes * MAX_EDGE * MAX_EDGE;
+    MY_INF = P.nnodes * MAX_EDGE;
     cout << "Set parameter MAX_EDGE to value " << MAX_EDGE << endl;
 
     // Gurobi ILP problem setup:
@@ -149,7 +149,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount++) {
+        for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount += 2) {
             model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (x_e[e] - 1));
             model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (1 - x_e[e]));
         }
@@ -257,7 +257,9 @@ int main(int argc, char *argv[]) {
 
     try {
         if (solve(P, LB, UB)) {
-            ViewProblemSolution(P, LB, UB, " Best solution found.", only_active_edges);
+            char msg[100];
+            sprintf(msg, " Gap of %.2f%%.", 100 * (UB - LB) / UB);
+            ViewProblemSolution(P, LB, UB, msg, only_active_edges);
             cout << "UB cost: " << UB << endl;
         }
     } catch (std::exception &e) {

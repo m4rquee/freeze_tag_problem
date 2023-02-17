@@ -123,8 +123,13 @@ bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const stri
         GA.SetAttrib(e, "style=dashed splines=true");
     }
     GA.SetColor(P.source, "Red");
-    GA.SetLabel("Scheduling starting from node " + P.vname[P.source] + " of value " + DoubleToString(UB) +
+#ifdef BDST
+    GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
                 ". LB = " + DoubleToString(LB) + ". " + msg);
+#else
+    GA.SetLabel("Scheduling starting from node " + P.vname[P.source] + " of makespan " + DoubleToString(UB) +
+                ". LB = " + DoubleToString(LB) + ". " + msg);
+#endif
     GA.View();
     return true;
 }
