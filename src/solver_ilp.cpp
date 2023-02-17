@@ -151,7 +151,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     for (DNodeIt v(P.g); v != INVALID; ++v)
         for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount += 2) {
             model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (x_e[e] - 1));
-            model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (1 - x_e[e]));
+            // Limit the model size of big instances:
+            if (P.nnodes <= 200) model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + MY_INF * (1 - x_e[e]));
         }
     cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
 
