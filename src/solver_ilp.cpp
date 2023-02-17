@@ -7,8 +7,6 @@
 #include <lemon/list_graph.h>
 #include <string>
 
-// #define BDST// uncomment to generate a Degree-Bounded Minimum Diameter Spanning Tree solver
-
 const long unsigned seed = 42;// seed to the random number generator
 
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
@@ -20,7 +18,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
         DIAMETER = max(DIAMETER, P.weight[e]);
     }
-#ifdef BDST
+#ifdef BDHST
     double auxUB = P.source_radius * log(P.nnodes) / log(max_degree - 1);
 #else
     double auxUB = 2 * P.source_radius * log2(P.nnodes);
@@ -56,7 +54,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     Digraph::ArcMap<GRBVar> x_e(P.g);                                   // if arc e is present in the tree
     Digraph::NodeMap<GRBVar> h_v(P.g);                                  // height of node v
     auto height = model.addVar(LB, UB, MAX_EDGE, GRB_INTEGER, "height");// tree's height
-#ifdef BDST
+#ifdef BDHST
     Digraph::NodeMap<GRBVar> r_v(P.g);//if node v is the root
 #endif
 
@@ -69,7 +67,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         char name[100];
         sprintf(name, "h_%s", P.vname[v].c_str());
         h_v[v] = model.addVar(0.0, UB, 1.0, GRB_INTEGER, name);
-#ifdef BDST
+#ifdef BDHST
         sprintf(name, "s_%s", P.vname[v].c_str());
         r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
 #endif
@@ -80,7 +78,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     cout << "Adding the model restrictions:" << endl;
 
     // There is only one root:
-#ifdef BDST
+#ifdef BDHST
     GRBLinExpr one_source_expr;
     for (DNodeIt v(P.g); v != INVALID; ++v) one_source_expr += r_v[v];
     model.addConstr(one_source_expr == 1);
@@ -88,7 +86,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #endif
 
     // The source is the root and has out-degree one:
-#ifndef BDST
+#ifndef BDHST
     GRBLinExpr s_out_degree_expr;
     for (OutArcIt e(P.g, P.source); e != INVALID; ++e) s_out_degree_expr += x_e[e];
     model.addConstr(s_out_degree_expr == 1);
@@ -100,13 +98,13 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     int constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) {
-#ifndef BDST
+#ifndef BDHST
         if (v == P.source) continue;
 #endif
         GRBLinExpr out_degree_expr, in_degree_expr;
         for (OutArcIt e(P.g, v); e != INVALID; ++e) out_degree_expr += x_e[e];
         for (InArcIt e(P.g, v); e != INVALID; ++e) in_degree_expr += x_e[e];
-#ifdef BDST
+#ifdef BDHST
         // The in-degree is one and the out-degree is at most max_degree - 1 for each internal node, and
         // zero and max_degree respectively for the root:
         model.addConstr(out_degree_expr <= max_degree - 1 + r_v[v]);
@@ -118,7 +116,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #endif
         constrCount += 2;
     }
-#ifdef BDST
+#ifdef BDHST
     cout << "-> the in-degree is one and the out-degree is at most max_degree - 1 for each internal node, and"
          << "\n   zero and max_degree respectively for the root - " << constrCount << " constrs" << endl;
 #else
@@ -135,7 +133,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         model.addConstr(h_v[P.source] == 0);
         constrCount = 1;
     }
-#ifdef BDST
+#ifdef BDHST
     else {
         constrCount = 0;
         for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(h_v[v] <= UB * (1 - r_v[v]));
@@ -195,7 +193,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         int activation_time = ceil(h_v[v].get(GRB_DoubleAttr_X));
         cout << P.vname[v].c_str() << '-' << activation_time << ";";
-#ifdef BDST
+#ifdef BDHST
         if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
 #endif
     }
@@ -252,7 +250,7 @@ int main(int argc, char *argv[]) {
 
     Problem_Instance P(g, vname, px, py, source, nnodes, maxtime, weight, original, source_radius);
     PrintInstanceInfo(P);
-#ifdef BDST
+#ifdef BDHST
     P.source = INVALID;
 #endif
 

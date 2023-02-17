@@ -32,11 +32,18 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast")
 endif ()
 
-# Target executable and linking
-add_executable(solver_ilp src/solver_ilp.cpp)
-target_link_libraries(solver_ilp m pthread)
-target_link_libraries(solver_ilp graph_utils)
-target_link_libraries(solver_ilp gurobi_c++ gurobi100)
+# Target executable and linking (Freeze-Tag Problem):
+add_executable(ftp_solver src/solver_ilp.cpp)
+target_link_libraries(ftp_solver m pthread)
+target_link_libraries(ftp_solver graph_utils)
+target_link_libraries(ftp_solver gurobi_c++ gurobi100)
+
+# Target executable and linking (Degree-Bounded Minimum Height Spanning Tree):
+add_executable(bdhst_solver src/solver_ilp.cpp)
+set_target_properties(bdhst_solver PROPERTIES COMPILE_DEFINITIONS "BDHST")
+target_link_libraries(bdhst_solver m pthread)
+target_link_libraries(bdhst_solver graph_utils)
+target_link_libraries(bdhst_solver gurobi_c++ gurobi100)
 
 #[[add_executable(ftp_qntd src/solver_ilp_ftp_qntd.cpp)
 target_link_libraries(ftp_qntd m pthread)
