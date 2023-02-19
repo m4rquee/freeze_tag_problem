@@ -159,14 +159,14 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #endif
     LB = max(LB, P.source_radius);// the source radius if there is one or the graph`s radius
     UB = max(LB, min(UB, ceil(auxUB)));
-    MAX_EDGE = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make the cost multiplier a tens power
-    cout << "Set parameter MAX_EDGE to value " << MAX_EDGE << endl;
+    auto COST_MULTIPLIER = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make a tens power
+    cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
-    env->set(GRB_DoubleParam_Cutoff, UB * (MAX_EDGE + P.nnodes));// set the best know UB
+    env->set(GRB_DoubleParam_Cutoff, UB * COST_MULTIPLIER + (P.nnodes - 1) * MAX_EDGE);// set the best know UB
     GRBModel model = GRBModel(*env);
     model.set(GRB_StringAttr_ModelName, "Freeze-Tag Problem");
     model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
@@ -184,9 +184,9 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     }
 
     // ILP problem variables: ----------------------------------------------------
-    Digraph::ArcMap<GRBVar> x_e(P.g);                                   // if arc e is present in the tree
-    Digraph::NodeMap<GRBVar> h_v(P.g);                                  // height of node v
-    auto height = model.addVar(LB, UB, MAX_EDGE, GRB_INTEGER, "height");// tree's height
+    Digraph::ArcMap<GRBVar> x_e(P.g);                                          // if arc e is present in the tree
+    Digraph::NodeMap<GRBVar> h_v(P.g);                                         // height of node v
+    auto height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");// tree's height
 #ifdef BDHST
     Digraph::NodeMap<GRBVar> r_v(P.g);//if node v is the root
 #endif
@@ -288,8 +288,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
         for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount += 2) {
-            model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + UB * (x_e[e] - 1));
-            model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + UB * (1 - x_e[e]));
+            model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (x_e[e] - 1));
+            model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (1 - x_e[e]));
         }
     cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
 
@@ -313,13 +313,14 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     // ILP solving: --------------------------------------------------------------
     model.optimize();// trys to solve optimally within the time limit
 
-    LB = max(LB, floor(model.get(GRB_DoubleAttr_ObjBound) / MAX_EDGE));
+    LB = max(LB, floor(model.get(GRB_DoubleAttr_ObjBound) / COST_MULTIPLIER));
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
     if (improved) {// a better solution was found
         UB = floor(height.get(GRB_DoubleAttr_X));
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
             LB = UB;
-    }
+    } else
+        return false;
     cout << "New LB - " << LB << endl;
 
     // Display the best know solution:
