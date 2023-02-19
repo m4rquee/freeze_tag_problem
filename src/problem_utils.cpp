@@ -4,7 +4,7 @@ Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNode
                                    DNode &sourcenode, int &nnodes, int &time_limit, ArcValueMap &pweight,
                                    ArcBoolMap &poriginal, double &psource_radius)
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
-      weight(pweight), original(poriginal), source_radius(psource_radius) {
+      weight(pweight), original(poriginal), source_radius(psource_radius), node_height(g) {
     solution = new Arc[nnodes];
     for (ArcIt e(g); e != INVALID; ++e) arc_map[g.source(e)][g.target(e)] = e;
 }
@@ -62,52 +62,57 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
     } else if (!ReadDigraph(filename, g, vname, posx, posy, weight))
         return false;
     nnodes = countNodes(g);
+#ifndef BDHST
     source = GetDNodeByName(g, vname, "0");
-    if (calc_clojure) {
-        // Make the digraph strongly connected by adding each edge reverse:
-        int i = 0;
-        vector<Arc> original_edges(countArcs(g));
-        for (ArcIt e(g); e != INVALID; ++e, i++) original[original_edges[i] = e] = true;// mark the originals
-        for (i--; i >= 0; i--) {// make each edge a reverse arc pair
-            auto e = original_edges[i];
-            auto rev = findArc(g, g.target(e), g.source(e));
-            if (rev == INVALID) {
-                rev = g.addArc(g.target(e), g.source(e));
-                original[rev] = false;
-                weight[rev] = weight[e];
-            }
-        }
-
-        source_radius = 0.0;
-#ifdef BDHST
-        double curr_radius;
-        source_radius = MY_INF;
-#endif
-        // Run a Dijkstra using each node as source and them add an arc to each node with the distance:
-        DijkstraSolver dijkstra_test(g, weight);
-        for (DNodeIt u(g); u != INVALID; ++u) {
-#ifdef BDHST
-            curr_radius = 0.0;
-#endif
-            dijkstra_test.run(u);
-            for (DNodeIt v(g); v != INVALID; ++v) {
-                if (u == v) continue;
-#ifdef BDHST
-                curr_radius = max(curr_radius, dijkstra_test.dist(v));
 #else
-                if (v == source) source_radius = max(source_radius, dijkstra_test.dist(v));
+    source = INVALID;
 #endif
-                auto aux = findArc(g, u, v);
-                if (aux == INVALID) {// if this arc is not present then add it with the distance as weight
-                    aux = g.addArc(u, v);
-                    original[aux] = tsplib;
-                }
-                weight[aux] = dijkstra_test.dist(v);
-            }
-#ifdef BDHST
-            source_radius = min(source_radius, curr_radius);
-#endif
+
+    // Ensure the digraph is strongly connected by adding each arc reverse:
+    int i = 0;
+    vector<Arc> original_edges(countArcs(g));
+    for (ArcIt e(g); e != INVALID; ++e, i++) original[original_edges[i] = e] = true;// mark the originals
+    for (i--; i >= 0; i--) {
+        auto e = original_edges[i];
+        auto rev = findArc(g, g.target(e), g.source(e));
+        if (rev == INVALID) {
+            rev = g.addArc(g.target(e), g.source(e));
+            original[rev] = false;
+            weight[rev] = weight[e];
         }
+    }
+
+    if (!calc_clojure) return true;
+
+    source_radius = 0.0;
+#ifdef BDHST
+    double curr_radius;
+    source_radius = MY_INF;
+#endif
+    // Run a Dijkstra using each node as source and them add an arc to each node with the distance:
+    DijkstraSolver dijkstra_solver(g, weight);
+    for (DNodeIt u(g); u != INVALID; ++u) {
+#ifdef BDHST
+        curr_radius = 0.0;
+#endif
+        dijkstra_solver.run(u);
+        for (DNodeIt v(g); v != INVALID; ++v) {
+            if (u == v) continue;
+#ifdef BDHST
+            curr_radius = max(curr_radius, dijkstra_solver.dist(v));
+#else
+            if (v == source) source_radius = max(source_radius, dijkstra_solver.dist(v));
+#endif
+            auto aux = findArc(g, u, v);
+            if (aux == INVALID) {// if this arc is not present then add it with the distance as weight
+                aux = g.addArc(u, v);
+                original[aux] = tsplib;// the tslib instances represents complete graphs
+            }
+            weight[aux] = dijkstra_solver.dist(v);
+        }
+#ifdef BDHST
+        source_radius = min(source_radius, curr_radius);
+#endif
     }
     return true;
 }
@@ -129,6 +134,8 @@ bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const stri
         GA.SetAttrib(e, "style=dashed splines=true");
         if (P.nnodes < 100) GA.SetLabel(e, weight);
     }
+    for (DNodeIt v(P.g); v != INVALID; ++v)
+        if (P.node_height[v] == UB) GA.SetColor(v, "Cyan");// highlight the deepest nodes
     GA.SetColor(P.source, "Red");
 #ifdef BDHST
     GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +

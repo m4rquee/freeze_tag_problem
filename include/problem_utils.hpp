@@ -42,6 +42,7 @@ public:
     Arc *solution;
     double &source_radius;
     map<DNode, map<DNode, Arc>> arc_map;// used for fast arc lookup
+    DNodeValueMap node_height;
 };
 
 void PrintInstanceInfo(Problem_Instance &P);
