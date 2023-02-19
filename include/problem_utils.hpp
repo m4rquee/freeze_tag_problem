@@ -25,7 +25,7 @@ typedef Dijkstra<Digraph, ArcValueMap> DijkstraSolver;
 class Problem_Instance {
 public:
     Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy, DNode &sourcenode,
-                 int &nnodes, int &time_limit, ArcValueMap &weight, ArcBoolMap &original, double &source_radius);
+                     int &nnodes, int &time_limit, ArcValueMap &weight, ArcBoolMap &original, double &source_radius);
     ~Problem_Instance();
     void start_counter();
 
@@ -41,6 +41,7 @@ public:
     ArcBoolMap &original;
     Arc *solution;
     double &source_radius;
+    map<DNode, map<DNode, Arc>> arc_map;// used for fast arc lookup
 };
 
 void PrintInstanceInfo(Problem_Instance &P);
@@ -48,8 +49,8 @@ void PrintInstanceInfo(Problem_Instance &P);
 void PrintSolution(Problem_Instance &P, ArcVector &Sol, const string &msg);
 
 bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                  DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
-                  bool calc_clojure = false, bool tsplib = false);
+                      DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
+                      bool calc_clojure = false, bool tsplib = false);
 
 bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges);
 

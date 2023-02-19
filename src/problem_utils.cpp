@@ -6,6 +6,7 @@ Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNode
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
       weight(pweight), original(poriginal), source_radius(psource_radius) {
     solution = new Arc[nnodes];
+    for (ArcIt e(g); e != INVALID; ++e) arc_map[g.source(e)][g.target(e)] = e;
 }
 
 Problem_Instance::~Problem_Instance() { delete[] solution; }
@@ -69,9 +70,12 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
         for (ArcIt e(g); e != INVALID; ++e, i++) original[original_edges[i] = e] = true;// mark the originals
         for (i--; i >= 0; i--) {// make each edge a reverse arc pair
             auto e = original_edges[i];
-            auto rev = g.addArc(g.target(e), g.source(e));
-            original[rev] = false;
-            weight[rev] = weight[e];
+            auto rev = findArc(g, g.target(e), g.source(e));
+            if (rev == INVALID) {
+                rev = g.addArc(g.target(e), g.source(e));
+                original[rev] = false;
+                weight[rev] = weight[e];
+            }
         }
 
         source_radius = 0.0;
@@ -110,7 +114,8 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 
 bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
-    GA.SetDefaultDNodeAttrib("color=LightGray style=filled width=0.2 height=0.2 fixedsize=true");
+    string defaultAttrib = "color=LightGray style=filled fixedsize=";
+    GA.SetDefaultDNodeAttrib(defaultAttrib + (P.nnodes < 100 ? "false" : "true"));
     for (ArcIt e(P.g); e != INVALID; ++e) {
         if (!P.original[e]) continue;
         GA.SetColor(e, only_active_edges ? "#00000000" : "#00000070");
@@ -118,9 +123,11 @@ bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const stri
     }
     for (int i = 0; i < P.nnodes - 1; i++) {
         auto e = P.solution[i];
+        auto weight = P.weight[e];
         if (P.original[e]) e = P.g.addArc(P.g.source(e), P.g.target(e));// duplicate if already exists
         GA.SetColor(e, "#ff000070");
         GA.SetAttrib(e, "style=dashed splines=true");
+        if (P.nnodes < 100) GA.SetLabel(e, weight);
     }
     GA.SetColor(P.source, "Red");
 #ifdef BDHST
