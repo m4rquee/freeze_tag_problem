@@ -120,8 +120,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 
 bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
-    string defaultAttrib = "color=LightGray style=filled fixedsize=";
-    GA.SetDefaultDNodeAttrib(defaultAttrib + (P.nnodes < 100 ? "false" : "true"));
+    GA.SetDefaultDNodeAttrib("color=LightGray style=filled width=0.1 height=0.1 fixedsize=false");
     for (ArcIt e(P.g); e != INVALID; ++e) {
         if (!P.original[e]) continue;
         GA.SetColor(e, only_active_edges ? "#00000000" : "#00000070");
