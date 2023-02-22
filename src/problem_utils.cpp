@@ -22,7 +22,7 @@ void PrintInstanceInfo(Problem_Instance &P) {
 }
 
 inline double node_distance(DNode &u, DNode &v, DNodePosMap &posx, DNodePosMap &posy) {
-    return ceil(sqrt(pow(posx[u] - posx[v], 2) + pow(posy[u] - posy[v], 2)));
+    return floor(sqrt(pow(posx[u] - posx[v], 2) + pow(posy[u] - posy[v], 2)) * 1E3) / 1E3;
 }
 
 bool ReadTSPLIBDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
@@ -40,9 +40,10 @@ bool ReadTSPLIBDigraph(const string &filename, Digraph &g, DNodeStringMap &vname
             std::getline(file, line);
         } while (line != "NODE_COORD_SECTION");
 
-        int id, x, y;
+        int id;
+        double x, y;
         for (std::getline(file, line); line != "EOF"; std::getline(file, line)) {
-            sscanf(line.c_str(), "%d %d %d", &id, &x, &y);
+            sscanf(line.c_str(), "%d %lf %lf", &id, &x, &y);
             auto u = g.addNode();
             vname[u] = to_string(id - 1);
             posx[u] = x;
@@ -63,7 +64,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
         return false;
     nnodes = countNodes(g);
 #ifndef BDHST
-    source = GetDNodeByName(g, vname, "0");
+    source = g.nodeFromId(g.maxNodeId());
 #else
     source = INVALID;
 #endif
