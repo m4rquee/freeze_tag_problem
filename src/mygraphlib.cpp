@@ -499,6 +499,19 @@ bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNod
     return (ok);
 }
 
+bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
+                 ArcIntMap &weight) {
+    string type = GetGraphFileType(filename);
+    if (type != "digraph") {
+        cout << "Error: Unknown type of digraph: " << type << endl;
+        exit(1);
+    }
+    DigraphTable GT(filename, g);// Read the graph (only nodes and edges)
+    bool ok = GT.GetColumn("nodename", vname);
+    ok = ok && GT.GetColumn("weight", weight);
+    ok = ok && GetNodeCoordinates(GT, "posx", posx, "posy", posy);
+    return (ok);
+}
 
 //Generate a random complete euclidean Graph
 bool GenerateRandomEuclideanDigraph(Digraph &g,

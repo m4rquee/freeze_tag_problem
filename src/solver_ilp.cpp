@@ -134,9 +134,10 @@ protected:
                 }
         }
 
-        double oldSolH;
-        if (newSolH < (oldSolH = (this->*solution_value)(height))) {
+        if (newSolH < MY_INF) {
             setSolution(height, newSolH);
+            auto oldSolH = MY_EPS * (this->*solution_value)(height);
+            newSolH *= MY_EPS;
             cout << "\n→ Solution found with local search of height " << newSolH << " over " << oldSolH << "\n\n";
             useSolution();// informs gurobi of this solution
         }
@@ -147,7 +148,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
     // Calculates the best know objective bounds:
-    auto MAX_EDGE = 0.0, DIAMETER = 0.0;
+    int MAX_EDGE = 0, DIAMETER = 0;
     for (ArcIt e(P.g); e != INVALID; ++e) {
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
         DIAMETER = max(DIAMETER, P.weight[e]);
@@ -157,8 +158,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #else
     double auxUB = 2 * P.source_radius * log2(P.nnodes);
 #endif
-    LB = max(LB, P.source_radius);// the source radius if there is one or the graph`s radius
-    UB = max(LB, min(UB, ceil(auxUB)));
+    LB = max(LB / MY_EPS, (double) P.source_radius);// the source radius if there is one or the graph`s radius
+    UB = max(LB, min(UB / MY_EPS, ceil(auxUB)));
     auto COST_MULTIPLIER = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make a tens power
     cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
 
@@ -170,25 +171,20 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     GRBModel model = GRBModel(*env);
     model.set(GRB_StringAttr_ModelName, "Freeze-Tag Problem");
     model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
-    model.set(GRB_DoubleParam_OptimalityTol, 1e-2);
+    model.set(GRB_DoubleParam_OptimalityTol, MY_EPS);
 
     // ILP solver parameters: ----------------------------------------------------
-    if (P.nnodes >= 20) {// focus only on new UBs
-        model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
-        model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
-        model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
-        model.set(GRB_IntParam_MinRelNodes, 500);
-        model.set(GRB_IntParam_PumpPasses, 10);
-        model.set(GRB_IntParam_ZeroObjNodes, 500);
-        model.set(GRB_DoubleParam_Heuristics, 0.01);
-    }
+    model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
+    model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
+    model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
+    model.set(GRB_DoubleParam_Heuristics, 0.25);
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g);                                          // if arc e is present in the tree
     Digraph::NodeMap<GRBVar> h_v(P.g);                                         // height of node v
     auto height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");// tree's height
 #ifdef BDHST
-    Digraph::NodeMap<GRBVar> r_v(P.g);//if node v is the root
+    Digraph::NodeMap<GRBVar> r_v(P.g);// if node v is the root
 #endif
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
@@ -267,7 +263,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     GRBLinExpr arc_sum_expr;
     for (ArcIt e(P.g); e != INVALID; ++e) arc_sum_expr += x_e[e];
     model.addConstr(arc_sum_expr == P.nnodes - 1);
-    cout << "-> the number of arcs is n-1 for any tree - " << 1 << " constrs" << endl;
+    cout << "-> the number of edges is n-1 for any tree - " << 1 << " constrs" << endl;
 
     if (P.source != INVALID) {
         model.addConstr(h_v[P.source] == 0);
@@ -287,10 +283,14 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        for (InArcIt e(P.g, v); e != INVALID; ++e, constrCount += 2) {
-            model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (x_e[e] - 1));
-            model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (1 - x_e[e]));
-        }
+        if (v != P.source)
+            for (InArcIt e(P.g, v); e != INVALID; ++e) {
+                constrCount++;
+                model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (x_e[e] - 1));
+                if (P.nnodes > 500) continue;
+                constrCount++;
+                model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (1 - x_e[e]));
+            }
     cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
@@ -312,16 +312,16 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     // ILP solving: --------------------------------------------------------------
     model.optimize();// trys to solve optimally within the time limit
+    P.stop_counter();
 
-    LB = max(LB, floor(model.get(GRB_DoubleAttr_ObjBound) / COST_MULTIPLIER));
+    LB = max(LB, ceil(model.get(GRB_DoubleAttr_ObjBound)) / COST_MULTIPLIER) * MY_EPS;
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
     if (improved) {// a better solution was found
-        UB = floor(height.get(GRB_DoubleAttr_X));
+        UB = ceil(height.get(GRB_DoubleAttr_X)) * MY_EPS;
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
             LB = UB;
     } else
         return false;
-    cout << "New LB - " << LB << endl;
 
     // Display the best know solution:
     int i = 0;
@@ -336,14 +336,15 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     }
     cout << endl << "Nodes height: ";
     for (DNodeIt v(P.g); v != INVALID; ++v) {
-        int node_height = h_v[v].get(GRB_DoubleAttr_X);
+        int node_height = ceil(h_v[v].get(GRB_DoubleAttr_X));
         P.node_height[v] = node_height;
-        cout << P.vname[v].c_str() << '-' << node_height << ";";
+        cout << P.vname[v].c_str() << '-' << node_height * MY_EPS << ";";
 #ifdef BDHST
         if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
 #endif
     }
     cout << endl;
+    cout << "New LB: " << LB << endl;
 
     return improved;
 }
@@ -359,7 +360,7 @@ int main(int argc, char *argv[]) {
     ArcStringMap ename(g);   // name for graph arcs
     ArcColorMap ecolor(g);   // color of arcs
     ArcValueMap lpvar(g);    // used to obtain the contents of the LP variables
-    ArcValueMap weight(g);   // arc weights
+    ArcIntMap weight(g);     // arc weights
     ArcBoolMap original(g);  // if an arc is original
     vector<DNode> V;
 
@@ -367,7 +368,10 @@ int main(int argc, char *argv[]) {
     if (argc < 3) {
         cout << endl
              << "Integer Linear Program for the Freeze-Tag Problem using the Gurobi solver;" << endl
-             << "Usage: " << argv[0] << "  <ftp_graph_filename> <maximum_time_sec>" << endl
+             << "Usage: " << argv[0]
+             << "  <ftp_graph_filename> <maximum_time_sec> <ftp_graph_filename> [-tsplib=true|false]"
+                " [-only_active_edges=true|false] [LB] [UB]"
+             << endl
              << endl;
         cout << "Example:" << endl
              << "\t" << argv[0] << " "
@@ -380,14 +384,13 @@ int main(int argc, char *argv[]) {
     maxtime = atoi(argv[2]);
     if (argc >= 4) tsplib = strcmp(argv[3], "-tsplib=true") == 0;
     if (argc >= 5) only_active_edges = strcmp(argv[3], "-only_active_edges=true") == 0;
-    MY_EPS = 1E-1;
+    MY_EPS = 1E-2;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
     if (argc >= 6) LB = atof(argv[5]);
     if (argc >= 7) UB = atof(argv[6]);
-    DNode source;
 
-    int nnodes;
-    double source_radius;
+    DNode source;
+    int nnodes, source_radius;
     if (!ReadProblemGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true,
                           tsplib)) {
         cout << "Error while reding the input graph." << endl;

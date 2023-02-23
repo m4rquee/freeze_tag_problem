@@ -1,17 +1,16 @@
 #include "problem_utils.hpp"
 
 Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy,
-                                   DNode &sourcenode, int &nnodes, int &time_limit, ArcValueMap &pweight,
-                                   ArcBoolMap &poriginal, double &psource_radius)
+                                   DNode &sourcenode, int &nnodes, int &time_limit, ArcIntMap &pweight,
+                                   ArcBoolMap &poriginal, int &psource_radius)
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
-      weight(pweight), original(poriginal), source_radius(psource_radius), node_height(g) {
-    solution = new Arc[nnodes];
+      weight(pweight), original(poriginal), solution(nnodes), source_radius(psource_radius), node_height(g) {
     for (ArcIt e(g); e != INVALID; ++e) arc_map[g.source(e)][g.target(e)] = e;
 }
 
-Problem_Instance::~Problem_Instance() { delete[] solution; }
-
 void Problem_Instance::start_counter() { start = chrono::system_clock::now(); }
+
+void Problem_Instance::stop_counter() { stop = chrono::system_clock::now(); }
 
 void PrintInstanceInfo(Problem_Instance &P) {
     cout << "Freeze-Tag graph information" << endl;
@@ -21,17 +20,18 @@ void PrintInstanceInfo(Problem_Instance &P) {
     cout << endl;
 }
 
-inline double node_distance(DNode &u, DNode &v, DNodePosMap &posx, DNodePosMap &posy) {
-    return floor(sqrt(pow(posx[u] - posx[v], 2) + pow(posy[u] - posy[v], 2)) * 1E3) / 1E3;
+inline int node_distance(DNode &u, DNode &v, DNodePosMap &posx, DNodePosMap &posy) {
+    auto dist = sqrt(pow(posx[u] - posx[v], 2) + pow(posy[u] - posy[v], 2));
+    return floor(dist / MY_EPS);// scale up to treat rational values as integers
 }
 
 bool ReadTSPLIBDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                       ArcValueMap &weight) {
+                       ArcIntMap &weight) {
     ifstream file;
     file.open(filename.c_str());
     if (!file) {
         cout << "Error: Could not open file " << filename << "." << endl;
-        exit(0);
+        exit(EXIT_FAILURE);
     }
 
     try {
@@ -56,7 +56,7 @@ bool ReadTSPLIBDigraph(const string &filename, Digraph &g, DNodeStringMap &vname
 }
 
 bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                      DNode &source, int &nnodes, ArcValueMap &weight, ArcBoolMap &original, double &source_radius,
+                      DNode &source, int &nnodes, ArcIntMap &weight, ArcBoolMap &original, int &source_radius,
                       bool calc_clojure, bool tsplib) {
     if (tsplib) {
         if (!ReadTSPLIBDigraph(filename, g, vname, posx, posy, weight)) return false;
@@ -118,7 +118,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
     return true;
 }
 
-bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool only_active_edges) {
+bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool &only_active_edges) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
     GA.SetDefaultDNodeAttrib("color=LightGray style=filled width=0.1 height=0.1 fixedsize=false");
     for (ArcIt e(P.g); e != INVALID; ++e) {
@@ -132,10 +132,10 @@ bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const stri
         if (P.original[e]) e = P.g.addArc(P.g.source(e), P.g.target(e));// duplicate if already exists
         GA.SetColor(e, "#ff000070");
         GA.SetAttrib(e, "style=dashed splines=true");
-        if (P.nnodes < 100) GA.SetLabel(e, weight);
+        if (P.nnodes < 100) GA.SetLabel(e, weight * MY_EPS);
     }
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (P.node_height[v] == UB) GA.SetColor(v, "Cyan");// highlight the deepest nodes
+        if (P.node_height[v] * MY_EPS == UB) GA.SetColor(v, "Cyan");// highlight the deepest nodes
     GA.SetColor(P.source, "Red");
 #ifdef BDHST
     GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
