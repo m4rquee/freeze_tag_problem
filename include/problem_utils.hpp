@@ -10,6 +10,7 @@ using namespace std;
 
 typedef chrono::time_point<chrono::system_clock> time_point;
 typedef vector<Arc> ArcVector;
+typedef vector<DNode> DNodeVector;
 typedef Dijkstra<Digraph, ArcIntMap> DijkstraSolver;
 
 // Problem_Instance put all relevant information in one class.
@@ -31,7 +32,7 @@ public:
     const int time_limit;
     ArcIntMap &weight;
     ArcBoolMap &original;
-    ArcVector solution;
+    ArcBoolMap solution;
     int &source_radius;
     map<DNode, map<DNode, Arc>> arc_map;// used for fast arc lookup
     DNodeIntMap node_height;

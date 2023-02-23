@@ -4,8 +4,11 @@ Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNode
                                    DNode &sourcenode, int &nnodes, int &time_limit, ArcIntMap &pweight,
                                    ArcBoolMap &poriginal, int &psource_radius)
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
-      weight(pweight), original(poriginal), solution(nnodes), source_radius(psource_radius), node_height(g) {
-    for (ArcIt e(g); e != INVALID; ++e) arc_map[g.source(e)][g.target(e)] = e;
+      weight(pweight), original(poriginal), solution(g), source_radius(psource_radius), node_height(g) {
+    for (ArcIt e(g); e != INVALID; ++e) {
+        arc_map[g.source(e)][g.target(e)] = e;
+        solution[e] = false;
+    }
 }
 
 void Problem_Instance::start_counter() { start = chrono::system_clock::now(); }
@@ -128,13 +131,17 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool &only_active_edges) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
     GA.SetDefaultDNodeAttrib("color=LightGray style=filled width=0.1 height=0.1 fixedsize=false");
+
+    int i = 0;
+    ArcVector used_arcs(P.nnodes - 1);
     for (ArcIt e(P.g); e != INVALID; ++e) {
+        if (P.solution[e]) used_arcs[i++] = e;
         if (!P.original[e]) continue;
         GA.SetColor(e, only_active_edges ? "#00000000" : "#00000070");
         GA.SetAttrib(e, "style=dotted");
     }
-    for (int i = 0; i < P.nnodes - 1; i++) {
-        auto e = P.solution[i];
+    for (i = 0; i < P.nnodes - 1; i++) {
+        auto e = used_arcs[i];
         auto weight = P.weight[e];
         if (P.original[e]) e = P.g.addArc(P.g.source(e), P.g.target(e));// duplicate if already exists
         GA.SetColor(e, "#ff000070");

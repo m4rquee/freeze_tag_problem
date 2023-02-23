@@ -144,6 +144,43 @@ protected:
     }
 };
 
+void greedy_solution(Problem_Instance &P) {
+    // Connect the source to the closest node:
+    Arc min_arc = INVALID;
+    double min_arc_weight = MY_INF;
+    for (DNodeIt v(P.g); v != INVALID; ++v)
+        if (v != P.source && P.weight[P.arc_map[P.source][v]] < min_arc_weight) {
+            min_arc = P.arc_map[P.source][v];
+            min_arc_weight = P.weight[min_arc];
+        }
+    P.solution[min_arc] = true;
+
+    // Init the degree map (-1 are not yet added nodes and -2 saturated nodes):
+    DNodeIntMap degree(P.g);
+    for (DNodeIt v(P.g); v != INVALID; ++v) degree[v] = -1;
+    degree[P.source] = -2;
+    degree[P.g.target(min_arc)] = 0;
+
+    DNodeVector added;
+    added.push_back(P.g.target(min_arc));
+    for (int i = 1; i < P.nnodes - 1; i++) {
+        min_arc_weight = MY_INF;
+        for (DNode &u: added)
+            if (degree[u] >= 0)// already added and not saturated
+                for (DNodeIt v(P.g); v != INVALID; ++v)
+                    if (degree[v] == -1)// not yet added
+                        if (P.weight[P.arc_map[u][v]] < min_arc_weight) {
+                            min_arc = P.arc_map[u][v];
+                            min_arc_weight = P.weight[min_arc];
+                        }
+        P.solution[min_arc] = true;
+        auto u = P.g.source(min_arc), v = P.g.target(min_arc);
+        if (++degree[u] == 2) degree[u] *= -1;// becomes saturated with two children
+        degree[v]++;
+        added.push_back(v);
+    }
+}
+
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
@@ -160,6 +197,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #endif
     LB = max(LB / MY_EPS, (double) P.source_radius);// the source radius if there is one or the graph`s radius
     UB = max(LB, min(UB / MY_EPS, ceil(auxUB)));
+    cout << "Set parameter LB to value " << LB << endl;
+    cout << "Set parameter UB to value " << UB << endl;
     auto COST_MULTIPLIER = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make a tens power
     cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
 
@@ -183,6 +222,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
     model.set(GRB_DoubleParam_Heuristics, 0.25);
 
+    // Construct an initial greedy solution:
+#ifndef BDHST
+    greedy_solution(P);
+#endif
+
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g);                                          // if arc e is present in the tree
     Digraph::NodeMap<GRBVar> h_v(P.g);                                         // height of node v
@@ -195,6 +239,9 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         char name[100];
         sprintf(name, "x_(%s,%s)", P.vname[P.g.source(e)].c_str(), P.vname[P.g.target(e)].c_str());
         x_e[e] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
+#ifndef BDHST
+        x_e[e].set(GRB_DoubleAttr_Start, P.solution[e]);
+#endif
     }
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
@@ -333,10 +380,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     cout << endl << "Tree edges: ";
     for (ArcIt e(P.g); e != INVALID; ++e) {
         bool active = x_e[e].get(GRB_DoubleAttr_X) >= 1 - MY_EPS;
-        if (active) {
-            cout << P.vname[P.g.source(e)].c_str() << '-' << P.vname[P.g.target(e)].c_str() << ";";
-            P.solution[i++] = e;
-        }
+        P.solution[e] = active;
+        if (active) cout << P.vname[P.g.source(e)].c_str() << '-' << P.vname[P.g.target(e)].c_str() << ";";
         if (!P.original[e] && !active) P.g.erase(e);
     }
     cout << endl << "Nodes height: ";
