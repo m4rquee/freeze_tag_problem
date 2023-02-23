@@ -13,10 +13,14 @@ void Problem_Instance::start_counter() { start = chrono::system_clock::now(); }
 void Problem_Instance::stop_counter() { stop = chrono::system_clock::now(); }
 
 void PrintInstanceInfo(Problem_Instance &P) {
+#ifdef BDHST
+    cout << "Bounded Degree Minimum Height Spanning Tree graph information" << endl;
+#else
     cout << "Freeze-Tag graph information" << endl;
+#endif
     cout << "\tTime limit = " << P.time_limit << "s" << endl;
     cout << "\tNumber of nodes = " << P.nnodes << endl;
-    cout << "\tSource = " << P.vname[P.source] << endl;
+    if (P.source != INVALID) cout << "\tSource = " << P.vname[P.source] << endl;
     cout << endl;
 }
 
@@ -60,8 +64,11 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
                       bool calc_clojure, bool tsplib) {
     if (tsplib) {
         if (!ReadTSPLIBDigraph(filename, g, vname, posx, posy, weight)) return false;
-    } else if (!ReadDigraph(filename, g, vname, posx, posy, weight))
-        return false;
+    } else {
+        if (!ReadDigraph(filename, g, vname, posx, posy, weight)) return false;
+        // Scale up to treat rational values as integers:
+        for (ArcIt e(g); e != INVALID; ++e) weight[e] = (int) (weight[e] / MY_EPS);
+    }
     nnodes = countNodes(g);
 #ifndef BDHST
     source = g.nodeFromId(g.maxNodeId());
@@ -85,10 +92,10 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 
     if (!calc_clojure) return true;
 
-    source_radius = 0.0;
+    source_radius = 0;
 #ifdef BDHST
-    double curr_radius;
-    source_radius = MY_INF;
+    int curr_radius;
+    source_radius = INT_LEAST32_MAX;
 #endif
     // Run a Dijkstra using each node as source and them add an arc to each node with the distance:
     DijkstraSolver dijkstra_solver(g, weight);

@@ -169,7 +169,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
     env->set(GRB_DoubleParam_Cutoff, UB * COST_MULTIPLIER + (P.nnodes - 1) * MAX_EDGE);// set the best know UB
     GRBModel model = GRBModel(*env);
+#ifdef BDHST
+    model.set(GRB_StringAttr_ModelName, "BDHST Problem");
+#else
     model.set(GRB_StringAttr_ModelName, "Freeze-Tag Problem");
+#endif
     model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
     model.set(GRB_DoubleParam_OptimalityTol, MY_EPS);
 
@@ -208,10 +212,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     // A node height is at least the source distance to it:
     int constrCount = 0;
-    if (P.source != INVALID)
+    if (P.source != INVALID) {
         for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++)
             if (v != P.source) model.addConstr(h_v[v] >= P.weight[P.arc_map[P.source][v]]);
-    cout << "-> a node height is at least the source distance to it - " << constrCount - 1 << " constrs" << endl;
+        cout << "-> a node height is at least the source distance to it - " << constrCount - 1 << " constrs" << endl;
+    }
 
     // There is only one root:
 #ifdef BDHST
