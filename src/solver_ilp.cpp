@@ -144,7 +144,24 @@ protected:
     }
 };
 
-void greedy_solution(Problem_Instance &P) {
+int calc_height(Problem_Instance &P, DNode &root) {
+    DNode left = INVALID, right = INVALID;
+    for (OutArcIt e(P.g, root); e != INVALID; ++e)
+        if (P.solution[e]) {
+            if (left == INVALID) left = P.g.target(e);
+            else {
+                right = P.g.target(e);
+                break;
+            }
+        }
+    if (left == INVALID) return 0;
+    int left_h = P.weight[P.arc_map[root][left]] + calc_height(P, left);
+    if (right == INVALID) return left_h;
+    int right_h = P.weight[P.arc_map[root][right]] + calc_height(P, right);
+    return max(left_h, right_h);
+}
+
+double greedy_solution(Problem_Instance &P) {
     // Connect the source to the closest node:
     Arc min_arc = INVALID;
     double min_arc_weight = MY_INF;
@@ -179,6 +196,7 @@ void greedy_solution(Problem_Instance &P) {
         degree[v]++;
         added.push_back(v);
     }
+    return calc_height(P, P.source);
 }
 
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
@@ -197,16 +215,21 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #endif
     LB = max(LB / MY_EPS, (double) P.source_radius);// the source radius if there is one or the graph`s radius
     UB = max(LB, min(UB / MY_EPS, ceil(auxUB)));
+    // Construct an initial greedy solution:
+#ifndef BDHST
+    UB = min(UB, greedy_solution(P));
+#endif
+
     cout << "Set parameter LB to value " << LB << endl;
     cout << "Set parameter UB to value " << UB << endl;
-    auto COST_MULTIPLIER = pow(10, ceil(log10(P.nnodes * DIAMETER)));// make a tens power
+    auto COST_MULTIPLIER = pow(10, ceil(log10((double) P.nnodes * UB)));// make a tens power
     cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
-    env->set(GRB_DoubleParam_Cutoff, UB * COST_MULTIPLIER + (P.nnodes - 1) * MAX_EDGE);// set the best know UB
+    env->set(GRB_DoubleParam_Cutoff, (UB + 1) * COST_MULTIPLIER);// set the best know UB
     GRBModel model = GRBModel(*env);
 #ifdef BDHST
     model.set(GRB_StringAttr_ModelName, "BDHST Problem");
@@ -217,15 +240,12 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_DoubleParam_OptimalityTol, MY_EPS);
 
     // ILP solver parameters: ----------------------------------------------------
-    model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
+    if (P.nnodes >= 300) model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
+    else
+        model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_OPTIMALITY);
     model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
     model.set(GRB_DoubleParam_Heuristics, 0.25);
-
-    // Construct an initial greedy solution:
-#ifndef BDHST
-    greedy_solution(P);
-#endif
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g);                                          // if arc e is present in the tree
@@ -338,10 +358,10 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         if (v != P.source)
             for (InArcIt e(P.g, v); e != INVALID; ++e) {
                 constrCount++;
-                model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (x_e[e] - 1));
+                model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (x_e[e] - 1));
                 if (P.nnodes > 500) continue;
                 constrCount++;
-                model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + 2 * UB * (1 - x_e[e]));
+                model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (1 - x_e[e]));
             }
     cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
 
