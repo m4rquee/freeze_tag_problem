@@ -74,7 +74,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
     }
     nnodes = countNodes(g);
 #ifndef BDHST
-    source = g.nodeFromId(g.maxNodeId());
+    source = g.nodeFromId(0);
 #else
     source = INVALID;
 #endif

@@ -68,9 +68,12 @@ protected:
         node_rank.clear();
         available_fathers.clear();
         for (DNodeIt v(P.g); v != INVALID; ++v) {
+            if (v == P.source) {
+                node_degree[v] = 1;
+                continue;// the source will not be swapped
+            }
             node_degree[v] = 0;
             for (OutArcIt e(P.g, v); e != INVALID; ++e) node_degree[v] += arc_value[e];
-            if (v == P.source) continue;// the source will not be swapped
             node_rank.push_back(rank(node_height[v], v));
             available_fathers.push_back(entry(key(-node_degree[v], node_height[v]), v));
         }
@@ -127,16 +130,15 @@ protected:
             // Reset the heaps and set the solution:
             heap_init();
             newSolH = 0.0;
-            for (DNodeIt v(P.g); v != INVALID; ++v)
-                if (v != P.source) {
-                    newSolH = max(newSolH, node_height[v]);
-                    setSolution(h_v[v], node_height[v]);
-                }
+            for (DNodeIt v(P.g); v != INVALID; ++v) {
+                newSolH = max(newSolH, node_height[v]);
+                setSolution(h_v[v], node_height[v]);
+            }
         }
 
-        if (newSolH < MY_INF) {
-            setSolution(height, newSolH);
+        if (newSolH < MY_INF) {// Has found an improving solution:
             auto oldSolH = MY_EPS * (this->*solution_value)(height);
+            setSolution(height, newSolH);
             newSolH *= MY_EPS;
             cout << "\n→ Solution found with local search of height " << newSolH << " over " << oldSolH << "\n\n";
             useSolution();// informs gurobi of this solution
@@ -151,14 +153,14 @@ int calc_height(Problem_Instance &P, DNode &root) {
             if (left == INVALID) left = P.g.target(e);
             else {
                 right = P.g.target(e);
-                break;
+                break;// found the two children
             }
         }
-    if (left == INVALID) return 0;
+    if (left == INVALID) return P.node_height[root] = 0;
     int left_h = P.weight[P.arc_map[root][left]] + calc_height(P, left);
-    if (right == INVALID) return left_h;
+    if (right == INVALID) return P.node_height[root] = left_h;
     int right_h = P.weight[P.arc_map[root][right]] + calc_height(P, right);
-    return max(left_h, right_h);
+    return P.node_height[root] = max(left_h, right_h);
 }
 
 double greedy_solution(Problem_Instance &P) {
@@ -220,14 +222,14 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     UB = min(UB, greedy_solution(P));
 #endif
 
-    cout << "Set parameter LB to value " << LB << endl;
-    cout << "Set parameter UB to value " << UB << endl;
+    cout << "Set parameter LB to value " << LB * MY_EPS << endl;
+    cout << "Set parameter UB to value " << UB * MY_EPS << endl;
     auto COST_MULTIPLIER = pow(10, ceil(log10((double) P.nnodes * UB)));// make a tens power
     cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
-    env->set(GRB_IntParam_Seed, seed);
+    env->set(GRB_IntParam_Seed, (int) (P.start.time_since_epoch().count() % INT_MAX));// seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
     env->set(GRB_DoubleParam_Cutoff, (UB + 1) * COST_MULTIPLIER);// set the best know UB
     GRBModel model = GRBModel(*env);
@@ -253,6 +255,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     auto height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");// tree's height
 #ifdef BDHST
     Digraph::NodeMap<GRBVar> r_v(P.g);// if node v is the root
+#else
+    height.set(GRB_DoubleAttr_Start, P.node_height[P.source]);
 #endif
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
@@ -369,7 +373,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     for (DNodeIt u(P.g); u != INVALID; ++u)
         for (OutArcIt e(P.g, u); e != INVALID; ++e) {
             DNode v = P.g.target(e);
-            if (P.g.id(u) < P.g.id(v)) {
+            if (Digraph::id(u) < Digraph::id(v)) {
                 constrCount++;
                 model.addConstr(x_e[e] + x_e[findArc(P.g, v, u)] <= 1);
             }
