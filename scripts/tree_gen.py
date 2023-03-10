@@ -1,53 +1,62 @@
 import sys
+from typing import List
 from os.path import join
-from heapq import heappop, heappush
-from dataclasses import dataclass, field
+from random import randrange
+from dataclasses import dataclass
+from collections import defaultdict
+from more_itertools import distinct_permutations as permutations
 
 
-def partitions(n, k, min_part=1):
-    if k < 1: return
-    if k == 1:
-        if n >= min_part: yield n,
-        return
-    for i in range(min_part, n + 1):
-        for result in partitions(n - i, k - 1, i):
-            yield result + (i,)
-
-
-def all_partitions(n, min_k, max_k, min_part=1):
-    for k in range(min_k, max_k + 1):
-        yield from partitions(n, k, min_part)
+def ordered_partitions(n, k, max_part):
+    partition = [0] * (k + 2)
+    curr_k = 1
+    y = n - 1
+    while curr_k != 0:
+        x = partition[curr_k - 1] + 1
+        curr_k -= 1
+        while 2 * x <= y and curr_k < k:
+            partition[curr_k] = x
+            y -= x
+            curr_k += 1
+        last = curr_k + 1
+        while x <= y:
+            partition[curr_k] = x
+            partition[last] = y
+            if curr_k == k - 2:
+                ret = partition[:k]
+                if ret[-1] <= max_part: yield from permutations(ret)
+            x += 1
+            y -= 1
+        partition[curr_k] = x + y
+        y = x + y - 1
+        if curr_k == k - 1:
+            ret = partition[:k]
+            if ret[-1] <= max_part: yield from permutations(ret)
 
 
 def print_tree(root, base_path, deg, n, count):
-    with open(join(base_path, f'tree-deg{deg}-n{n}-{count}.g'), 'w+') as out_file:
-        print('nnodes nedges type', file=out_file)
-        print(N, N - 1, 'graph', file=out_file)
+    with open(join(base_path, f'tree-deg{deg}-n{n}-{count}.dig'), 'w+') as out_file:
+        print('nnodes narcs type', file=out_file)
+        print(N, N - 1, 'digraph', file=out_file)
         print('nodename posx posy', file=out_file)
         root.print_nodes(out_file)
-        print('endpoint1 endpoint2 weight', file=out_file)
+        print('tail head weight', file=out_file)
         root.print_edges(out_file)
 
 
-@dataclass(order=True)
+@dataclass
 class Node:
-    sort_index: int = field(init=False, repr=False)
-
     code: int
-    x: float
-    y: float
-    max_degree: int
-    size: int
-    depth: int
-    min_degree: int = 1
-    children_gen = iter(())
-    children = []
+    x: int
+    y: int
+    num_children: int
+    children: List = None
 
     def __post_init__(self):
-        self.sort_index = -self.code
+        self.children = []
 
     def __str__(self):
-        if len(self.children) > 0:
+        if self.num_children > 0:
             return f"{self.code}->[{', '.join(map(str, self.children))}]"
         return str(self.code)
 
@@ -60,62 +69,54 @@ class Node:
             print(self.code, child.code, 1, file=out_file)
             child.print_edges(out_file)
 
-    def init(self):
-        if self.size > 1:
-            # Iterate over all ordered partitions of the descendents into up to d subtrees:
-            self.children_gen = all_partitions(self.size - 1, self.min_degree, self.max_degree)
-        return self
 
-    def gen_children(self):  # return the next subtree rooted at this node
-        if self.size == 1: return []  # nothing to do
+def gen_tree_from_seq(d_seq, root_degree):
+    code = 0
+    queue = [root := Node(code, 0, 0, root_degree)]
+    nodes_per_depth = defaultdict(int)
+    while queue:
+        first = queue.pop(0)
+        if first.num_children > len(d_seq): return None  # this sequence is invalid
+        curr_child_deg = float('inf')
+        for _ in range(first.num_children):
+            code += 1
+            y = first.y + 1
+            x = nodes_per_depth[y]
+            nodes_per_depth[y] += 1
+            new_child_deg = d_seq.pop(0) - 1
+            if new_child_deg > curr_child_deg: return None  # consider only non-increasing sequences (skip isomorphisms)
+            curr_child_deg = new_child_deg
+            first.children.append(new_child := Node(code, x, y, new_child_deg))
+            if new_child.num_children > 0: queue.append(new_child)  # it's not a leaf and so there is nothing to expand
+    if len(d_seq) != 0: return None  # this sequence is invalid
+    return root
 
-        bags = next(self.children_gen, None)
-        if bags is None: return []  # generated all subtrees
 
-        base_code = self.code + 1
-        self.children = []
-        for bag in bags:
-            x, y = base_code, self.depth + 1
-            self.children.append(Node(base_code, x, y, self.max_degree, bag, self.depth + 1).init())
-            base_code += bag
-        return self.children
-
-
-def gen_trees(n, deg, min_root_degree, base_path):
-    root = Node(0, 0, 0, deg, n, 0, min_root_degree).init()
-    node_heap = [root]
-    count = 0  # count the number of generated trees
-
-    while True:
-        # Backtrack until an expandable node is found:
-        removed_cache = []
-        curr_node = heappop(node_heap)
-        while not curr_node.gen_children():
-            removed_cache.append(curr_node)
-            if len(node_heap) == 0: return  # generated all trees
-            curr_node = heappop(node_heap)
-
-        # Add all nodes back:
-        # Keep only the non descendents of curr_node and reset then:
-        removed_cache = [r.init() for r in removed_cache if r.code >= curr_node.code + curr_node.size]
-        heappush(node_heap, curr_node)
-        leafs = curr_node.children + removed_cache
-        for leaf in leafs: heappush(node_heap, leaf)
-
-        # Grow a new tree from curr_node's id onwards:
-        while len(node_heap) < n:
-            next_leafs = []
-            for leaf in leafs:
-                for child in leaf.gen_children():  # expand the nodes children list into the heap
-                    heappush(node_heap, child)
-                    next_leafs.append(child)
-            leafs = next_leafs
-        print(root)  # has a full-grown n node tree
+def gen_trees(n, max_degree, root_degree, base_path):
+    m = N - 1  # number of edges
+    degree_sum = 2 * m - root_degree  # the sum of the degree sequence equals 2M
+    count = 0
+    printed = 0
+    random_num = randrange(n)
+    for d_seq in ordered_partitions(degree_sum, n - 1, max_degree):
         count += 1
-        print_tree(root, base_path, deg, n, count)
+        if count % n ** 2 == random_num:  # skip most of the generated sequences
+            d_seq = list(reversed(d_seq))  # look first for tree that are more dense closer to the root
+            print(f'\rdegree sequence count = {count}; generated trees = {printed}...', end='')
+            if (tree := gen_tree_from_seq(d_seq, root_degree)) is not None:
+                printed += 1
+                print_tree(tree, base_path, max_degree, n, printed)
+                yield tree
+                if printed == 1: break
+                random_num = randrange(n)
+    print('\r', end='')
+    yield count
 
 
-N = max(3, int(sys.argv[1]))  # must be at least 3
-Degree = int(sys.argv[2])
-Base_path = sys.argv[3]
-gen_trees(N, Degree, 2, Base_path)
+N = int(sys.argv[1])  # number of tree nodes
+Max_degree = int(sys.argv[2])
+Root_degree = int(sys.argv[3])
+Base_path = sys.argv[4]
+print(f'Generating trees with {N} nodes, maximum degree {Max_degree} and root degree {Root_degree}:')
+print(*gen_trees(N, Max_degree, Root_degree, Base_path), sep='\n')
+print('trees were generated')
