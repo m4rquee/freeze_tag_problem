@@ -96,7 +96,7 @@ protected:
         heap_init();
         auto newSolH = MY_INF;
         while (!available_fathers.empty()) {
-            entry &popped_entry = available_fathers.front();
+            entry popped_entry = available_fathers.front();
             DNode &new_father = popped_entry.second;
             pop_heap(available_fathers.begin(), available_fathers.end());// moves the entry to the end
             available_fathers.pop_back();                                // deletes the entry from the heap
