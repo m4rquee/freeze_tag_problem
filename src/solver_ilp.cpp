@@ -147,29 +147,29 @@ protected:
 };
 
 int calc_height(Problem_Instance &P, DNode &root) {
-    DNode left = INVALID, right = INVALID;
+    P.node_height[root] = 0;
     for (OutArcIt e(P.g, root); e != INVALID; ++e)
         if (P.solution[e]) {
-            if (left == INVALID) left = P.g.target(e);
-            else {
-                right = P.g.target(e);
-                break;// found the two children
-            }
+            auto child = P.g.target(e);
+            int child_height = P.weight[P.arc_map[root][child]] + calc_height(P, child);
+            P.node_height[root] = max(P.node_height[root], child_height);
         }
-    if (left == INVALID) return P.node_height[root] = 0;
-    int left_h = P.weight[P.arc_map[root][left]] + calc_height(P, left);
-    if (right == INVALID) return P.node_height[root] = left_h;
-    int right_h = P.weight[P.arc_map[root][right]] + calc_height(P, right);
-    return P.node_height[root] = max(left_h, right_h);
+    return P.node_height[root];
 }
 
-double greedy_solution(Problem_Instance &P) {
+double greedy_solution(Problem_Instance &P, int max_degree) {
     // Connect the source to the closest node:
     Arc min_arc = INVALID;
     double min_arc_weight = MY_INF;
+    DNode source;
+#ifdef BDHST
+    source = P.source != INVALID ? P.source : P.g.nodeFromId(rand() % P.g.maxNodeId());
+#else
+    source = P.source;
+#endif
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (v != P.source && P.weight[P.arc_map[P.source][v]] < min_arc_weight) {
-            min_arc = P.arc_map[P.source][v];
+        if (v != source && P.weight[P.arc_map[source][v]] < min_arc_weight) {
+            min_arc = P.arc_map[source][v];
             min_arc_weight = P.weight[min_arc];
         }
     P.solution[min_arc] = true;
@@ -177,14 +177,19 @@ double greedy_solution(Problem_Instance &P) {
     // Init the degree map (-1 are not yet added nodes and -2 saturated nodes):
     DNodeIntMap degree(P.g);
     for (DNodeIt v(P.g); v != INVALID; ++v) degree[v] = -1;
-    degree[P.source] = -2;
+#ifdef BDHST
+    degree[source] = max_degree == 1 ? -2 : 1;
+#else
+    degree[source] = -2;
+#endif
     degree[P.g.target(min_arc)] = 0;
 
     DNodeVector added;
+    added.push_back(source);
     added.push_back(P.g.target(min_arc));
     for (int i = 1; i < P.nnodes - 1; i++) {
         min_arc_weight = MY_INF;
-        for (DNode &u: added)
+        for (DNode u: added)
             if (degree[u] >= 0)// already added and not saturated
                 for (DNodeIt v(P.g); v != INVALID; ++v)
                     if (degree[v] == -1)// not yet added
@@ -194,11 +199,11 @@ double greedy_solution(Problem_Instance &P) {
                         }
         P.solution[min_arc] = true;
         auto u = P.g.source(min_arc), v = P.g.target(min_arc);
-        if (++degree[u] == 2) degree[u] *= -1;// becomes saturated with two children
-        degree[v]++;
+        if (++degree[u] == max_degree - (u != source)) degree[u] = -2;// becomes saturated with max_degree-1 children
+        degree[v] = 0;
         added.push_back(v);
     }
-    return calc_height(P, P.source);
+    return calc_height(P, source);
 }
 
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
@@ -218,9 +223,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     LB = max(LB / MY_EPS, (double) P.source_radius);// the source radius if there is one or the graph`s radius
     UB = max(LB, min(UB / MY_EPS, ceil(auxUB)));
     // Construct an initial greedy solution:
-#ifndef BDHST
-    UB = min(UB, greedy_solution(P));
-#endif
+    auto greedy_sol = greedy_solution(P, max_degree);
+    UB = min(UB, greedy_sol);
 
     cout << "Set parameter LB to value " << LB * MY_EPS << endl;
     cout << "Set parameter UB to value " << UB * MY_EPS << endl;
@@ -255,17 +259,14 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     auto height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");// tree's height
 #ifdef BDHST
     Digraph::NodeMap<GRBVar> r_v(P.g);// if node v is the root
-#else
-    height.set(GRB_DoubleAttr_Start, P.node_height[P.source]);
 #endif
+    height.set(GRB_DoubleAttr_Start, greedy_sol);
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
         sprintf(name, "x_(%s,%s)", P.vname[P.g.source(e)].c_str(), P.vname[P.g.target(e)].c_str());
         x_e[e] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
-#ifndef BDHST
         x_e[e].set(GRB_DoubleAttr_Start, P.solution[e]);
-#endif
     }
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
@@ -392,12 +393,24 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     LB = max(LB, ceil(model.get(GRB_DoubleAttr_ObjBound)) / COST_MULTIPLIER) * MY_EPS;
     bool improved = model.get(GRB_IntAttr_SolCount) > 0;
-    if (improved) {// a better solution was found
-        UB = ceil(height.get(GRB_DoubleAttr_X)) * MY_EPS;
-        if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
-            LB = UB;
-    } else
-        return false;
+    if (!improved) return false;
+
+    // A better solution was found:
+    cout << endl << "Nodes height: ";
+    UB = 0;
+    for (DNodeIt v(P.g); v != INVALID; ++v) {
+        int node_height = ceil(h_v[v].get(GRB_DoubleAttr_X));
+        P.node_height[v] = node_height;
+        cout << P.vname[v].c_str() << '-' << node_height * MY_EPS << ";";
+#ifdef BDHST
+        if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
+#endif
+        UB = max(UB, (double) node_height);
+    }
+
+    UB *= MY_EPS;
+    if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
+        LB = UB;
 
     // Display the best know solution:
     int i = 0;
@@ -407,15 +420,6 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         P.solution[e] = active;
         if (active) cout << P.vname[P.g.source(e)].c_str() << '-' << P.vname[P.g.target(e)].c_str() << ";";
         if (!P.original[e] && !active) P.g.erase(e);
-    }
-    cout << endl << "Nodes height: ";
-    for (DNodeIt v(P.g); v != INVALID; ++v) {
-        int node_height = ceil(h_v[v].get(GRB_DoubleAttr_X));
-        P.node_height[v] = node_height;
-        cout << P.vname[v].c_str() << '-' << node_height * MY_EPS << ";";
-#ifdef BDHST
-        if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
-#endif
     }
     cout << endl;
     cout << "New LB: " << LB << endl;
