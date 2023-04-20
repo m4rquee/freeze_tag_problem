@@ -47,7 +47,7 @@ protected:
         if (child == new_father || father == new_father) return INVALID;
 
         DNode grandfather = get_father(father);
-        double &new_father_h = node_height[new_father];
+        double new_father_h = node_height[new_father];
         if (grandfather != P.source &&// reached the root and so moving the father will disconnect the tree
             new_father_h + P.weight[P.arc_map[new_father][father]] < node_height[father])
             return get_shallowest_ancestor(grandfather, father, new_father);// can keep going up
@@ -56,7 +56,7 @@ protected:
         return INVALID;  // there is no improving swap
     }
 
-    void calc_height(DNode &v, double &v_height) {
+    void calc_height(DNode &v, double v_height) {
         if (node_degree[v] > 0)
             for (OutArcIt e(P.g, v); e != INVALID; ++e)
                 if (arc_value[e]) {
@@ -219,13 +219,10 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
         DIAMETER = max(DIAMETER, P.weight[e]);
     }
-#ifdef BDHST
-    double auxUB = P.source_radius * log(P.nnodes) / log(max_degree - 1);
-#else
-    double auxUB = 2 * P.source_radius * log2(P.nnodes);
-#endif
-    LB = max(LB / MY_EPS, (double) P.source_radius);// the source radius if there is one or the graph`s radius
-    UB = max(LB, min(UB / MY_EPS, ceil(auxUB)));
+    double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1));
+    auto auxUB = MAX_EDGE * minimum_depth;
+    LB = max(LB / MY_EPS, (double) P.source_radius);
+    UB = max(LB, min(UB / MY_EPS, auxUB));
     // Construct an initial greedy solution:
     auto greedy_sol = greedy_solution(P, max_degree);
     UB = min(UB, greedy_sol);
@@ -368,7 +365,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
             for (InArcIt e(P.g, v); e != INVALID; ++e) {
                 constrCount++;
                 model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (x_e[e] - 1));
-                if (P.nnodes > 500) continue;
+                if (P.nnodes > 500) continue;// reduce the model size for big instances
                 constrCount++;
                 model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (1 - x_e[e]));
             }

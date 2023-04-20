@@ -1,8 +1,8 @@
 #include "problem_utils.hpp"
 
 Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy,
-                                   DNode &sourcenode, int &nnodes, int &time_limit, ArcIntMap &pweight,
-                                   ArcBoolMap &poriginal, int &psource_radius)
+                                   DNode &sourcenode, int nnodes, int time_limit, ArcIntMap &pweight,
+                                   ArcBoolMap &poriginal, int psource_radius)
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
       weight(pweight), original(poriginal), solution(g), source_radius(psource_radius), node_height(g) {
     for (ArcIt e(g); e != INVALID; ++e) {
@@ -24,6 +24,7 @@ void PrintInstanceInfo(Problem_Instance &P) {
     cout << "\tTime limit = " << P.time_limit << "s" << endl;
     cout << "\tNumber of nodes = " << P.nnodes << endl;
     if (P.source != INVALID) cout << "\tSource = " << P.vname[P.source] << endl;
+    if (P.source != INVALID) cout << "\tSource radius = " << P.source_radius * MY_EPS << endl;
     cout << endl;
 }
 
@@ -74,9 +75,9 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
     }
     nnodes = countNodes(g);
 #ifndef BDHST
-    if (tsplib) source = g.nodeFromId(g.maxNodeId());
+    if (tsplib) source = Digraph::nodeFromId(g.maxNodeId());
     else
-        source = g.nodeFromId(0);
+        source = Digraph::nodeFromId(0);
 #else
     source = INVALID;
 #endif
@@ -108,20 +109,26 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 #ifdef BDHST
         curr_radius = 0.0;
 #endif
-        dijkstra_solver.run(u);
+        if (!tsplib) dijkstra_solver.run(u);
         for (DNodeIt v(g); v != INVALID; ++v) {
             if (u == v) continue;
-#ifdef BDHST
-            curr_radius = max(curr_radius, dijkstra_solver.dist(v));
-#else
-            if (v == source) source_radius = max(source_radius, dijkstra_solver.dist(v));
-#endif
+
+            int dist;
             auto aux = findArc(g, u, v);
+            if (tsplib) dist = weight[aux];
+            else
+                dist = dijkstra_solver.dist(v);
+#ifdef BDHST
+            curr_radius = max(curr_radius, dist);
+#else
+            if (v == source) source_radius = max(source_radius, dist);
+#endif
+            if (tsplib) continue;// no need to execute the following
             if (aux == INVALID) {// if this arc is not present then add it with the distance as weight
                 aux = g.addArc(u, v);
                 original[aux] = tsplib;// the tslib instances represents complete graphs
             }
-            weight[aux] = dijkstra_solver.dist(v);
+            weight[aux] = dist;
         }
 #ifdef BDHST
         source_radius = min(source_radius, curr_radius);
@@ -130,7 +137,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
     return true;
 }
 
-bool ViewProblemSolution(Problem_Instance &P, double &LB, double &UB, const string &msg, bool &only_active_edges) {
+bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string &msg, bool only_active_edges) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
     GA.SetDefaultDNodeAttrib("color=LightGray style=filled width=0.1 height=0.1 fixedsize=false");
 
