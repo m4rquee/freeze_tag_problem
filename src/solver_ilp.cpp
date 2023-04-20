@@ -7,7 +7,7 @@
 #include <lemon/list_graph.h>
 #include <string>
 
-const long unsigned seed = 42;// seed to the random number generator
+const unsigned seed = 42;// seed to the random number generator
 
 class LocalSearchCB : public GRBCallback {
     Problem_Instance &P;
@@ -22,34 +22,35 @@ class LocalSearchCB : public GRBCallback {
 
     double (GRBCallback::*solution_value)(GRBVar) = nullptr;
 
-    typedef pair<int, int> key;
-    typedef pair<key, DNode> entry;
-    typedef pair<int, DNode> rank;
+    typedef pair<int, int> h_d_pair;
+    typedef pair<h_d_pair, DNode> h_d_triple;
+    typedef pair<int, DNode> h_pair;
 
-    vector<rank> node_rank;
-    vector<entry> available_fathers;
+    vector<h_pair> node_height_heap;     // max heap ordered by nodes height
+    vector<h_d_triple> available_fathers;// min heap ordered by nodes height and then their degree
 
 public:
     LocalSearchCB(Problem_Instance &_P, Digraph::ArcMap<GRBVar> &_x_e, Digraph::NodeMap<GRBVar> &_h_v, GRBVar &_height)
         : P(_P), x_e(_x_e), h_v(_h_v), height(_height), arc_value(P.g), node_height(P.g), node_degree(P.g),
-          node_rank(P.nnodes - 1), available_fathers(P.nnodes - 1) {}
+          node_height_heap(P.nnodes - 1), available_fathers(P.nnodes - 1) {}
 
 protected:
-    inline DNode get_father(const DNode &node) {
-        for (InArcIt e(P.g, node); e != INVALID; ++e)
+    inline DNode get_father(const DNode &v) {
+        for (InArcIt e(P.g, v); e != INVALID; ++e)
             if (arc_value[e]) return P.g.source(e);
         return INVALID;
     }
 
+    // Get the child's shallowest ancestor that still can be children of the new_father while improving its own cost:
     DNode get_shallowest_ancestor(const DNode &father, const DNode &child, const DNode &new_father) {
-        // Cannot move a node to itself, or to its current father:
+        // Cannot move a node to itself or its current father:
         if (child == new_father || father == new_father) return INVALID;
 
-        DNode next_father = get_father(father);
+        DNode grandfather = get_father(father);
         double &new_father_h = node_height[new_father];
-        if (next_father != P.source &&// reached the root and so moving the father will disconnect the tree
+        if (grandfather != P.source &&// reached the root and so moving the father will disconnect the tree
             new_father_h + P.weight[P.arc_map[new_father][father]] < node_height[father])
-            return get_shallowest_ancestor(next_father, father, new_father);// can keep going up
+            return get_shallowest_ancestor(grandfather, father, new_father);// can keep going up
         if (new_father_h + P.weight[P.arc_map[new_father][child]] < node_height[child])
             return child;// found the shallowest ancestor that makes an improving swap
         return INVALID;  // there is no improving swap
@@ -65,19 +66,20 @@ protected:
     }
 
     void heap_init() {
-        node_rank.clear();
+        node_height_heap.clear();
         available_fathers.clear();
         for (DNodeIt v(P.g); v != INVALID; ++v) {
             if (v == P.source) {
                 node_degree[v] = 1;
-                continue;// the source will not be swapped
+                continue;// the source will not be swapped, nor be receiving new children
             }
             node_degree[v] = 0;
             for (OutArcIt e(P.g, v); e != INVALID; ++e) node_degree[v] += arc_value[e];
-            node_rank.push_back(rank(node_height[v], v));
-            available_fathers.push_back(entry(key(-node_degree[v], node_height[v]), v));
+            node_height_heap.push_back(h_pair(node_height[v], v));
+            if (node_degree[v] == 2) continue;// cannot receive new children
+            available_fathers.push_back(h_d_triple(h_d_pair(-node_height[v], -node_degree[v]), v));
         }
-        make_heap(node_rank.begin(), node_rank.end());
+        make_heap(node_height_heap.begin(), node_height_heap.end());
         make_heap(available_fathers.begin(), available_fathers.end());
     }
 
@@ -94,53 +96,56 @@ protected:
             node_height[v] = (this->*solution_value)(h_v[v]);
 
         heap_init();
-        auto newSolH = MY_INF;
+        auto found_better_sol = false;
         while (!available_fathers.empty()) {
-            entry popped_entry = available_fathers.front();
-            DNode &new_father = popped_entry.second;
-            pop_heap(available_fathers.begin(), available_fathers.end());// moves the entry to the end
-            available_fathers.pop_back();                                // deletes the entry from the heap
+            h_d_triple popped_triple = available_fathers.front();
+            DNode &new_father = popped_triple.second;
+            pop_heap(available_fathers.begin(), available_fathers.end());// moves the triple to the end
+            available_fathers.pop_back();                                // deletes the triple from the heap
 
-            if (node_degree[new_father] == 2) break;// no father with available slot
-
-            // Can make a deep node child of this one: -----------------------------------------------------------------
-            rank popped_rank;
-            DNode shallowest_ancestor, child;
+            // Check if it can make a deep node child of the candidate father: -----------------------------------------
+            h_pair popped_pair;
+            DNode shallowest_ancestor = INVALID, child;
             do {
-                if (node_rank.empty()) break;// cannot make a node child of this new father while improving the cost
-                popped_rank = node_rank.front();
-                child = shallowest_ancestor = popped_rank.second;
-                pop_heap(node_rank.begin(), node_rank.end());
-                node_rank.pop_back();
-            } while ((shallowest_ancestor = get_shallowest_ancestor(get_father(child), child, new_father)) == INVALID);
+                if (node_height_heap.empty())
+                    break;// cannot make a node child of this new father while improving the cost
+                popped_pair = node_height_heap.front();
+                child = shallowest_ancestor = popped_pair.second;
+                pop_heap(node_height_heap.begin(), node_height_heap.end());
+                node_height_heap.pop_back();
+                shallowest_ancestor = get_shallowest_ancestor(get_father(child), child, new_father);
+            } while (shallowest_ancestor == INVALID);
 
-            if (shallowest_ancestor == INVALID) continue;// could not find an improving swap with this father
+            if (shallowest_ancestor == INVALID) continue;// could not find an improving swap with this candidate father
+            found_better_sol = true;
 
             // Make shallowest_ancestor child of the new_father:
             auto new_arc = P.arc_map[new_father][shallowest_ancestor];
             setSolution(x_e[new_arc], arc_value[new_arc] = true);// connect shallowest_ancestor to the new_father
             for (InArcIt e(P.g, shallowest_ancestor); e != INVALID; ++e)
-                if (arc_value[e]) {// remove the arc from the old father to the shallowest_ancestor
+                if (arc_value[e]) {// remove the arc to the shallowest_ancestor from its old father
                     setSolution(x_e[e], arc_value[e] = false);
                     break;
                 }
             node_height[shallowest_ancestor] = node_height[new_father] + P.weight[new_arc];
             calc_height(shallowest_ancestor, node_height[shallowest_ancestor]);// update the whole subtree
-
-            // Reset the heaps and set the solution:
             heap_init();
-            newSolH = 0.0;
-            for (DNodeIt v(P.g); v != INVALID; ++v) {
-                newSolH = max(newSolH, node_height[v]);
-                setSolution(h_v[v], node_height[v]);
-            }
         }
 
-        if (newSolH < MY_INF) {// Has found an improving solution:
-            auto oldSolH = MY_EPS * (this->*solution_value)(height);
-            setSolution(height, newSolH);
-            newSolH *= MY_EPS;
-            cout << "\n→ Solution found with local search of height " << newSolH << " over " << oldSolH << "\n\n";
+
+        // Has found an improving solution and so informs it:
+        if (found_better_sol) {
+            auto new_sol_height = 0.0;
+            for (DNodeIt v(P.g); v != INVALID; ++v) {
+                new_sol_height = max(new_sol_height, node_height[v]);
+                setSolution(h_v[v], node_height[v]);
+            }
+
+            auto old_sol_h = MY_EPS * (this->*solution_value)(height);
+            setSolution(height, new_sol_height);
+            new_sol_height *= MY_EPS;
+            cout << "\n→ Found solution with local search of height " << new_sol_height << " over " << old_sol_h
+                 << "\n\n";
             useSolution();// informs gurobi of this solution
         }
     }
@@ -158,23 +163,18 @@ int calc_height(Problem_Instance &P, DNode &root) {
 }
 
 double greedy_solution(Problem_Instance &P, int max_degree) {
-    // Connect the source to the closest node:
+    // Connect the source to some closest node:
     Arc min_arc = INVALID;
     double min_arc_weight = MY_INF;
-    DNode source;
-#ifdef BDHST
-    source = P.source != INVALID ? P.source : P.g.nodeFromId(rand() % P.g.maxNodeId());
-#else
-    source = P.source;
-#endif
-    for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (v != source && P.weight[P.arc_map[source][v]] < min_arc_weight) {
-            min_arc = P.arc_map[source][v];
-            min_arc_weight = P.weight[min_arc];
+    auto source = P.source != INVALID ? P.source : Digraph::nodeFromId(rand() % countNodes(P.g));
+    for (OutArcIt e(P.g, source); e != INVALID; ++e)
+        if (P.weight[e] < min_arc_weight) {
+            min_arc = e;
+            min_arc_weight = P.weight[e];
         }
     P.solution[min_arc] = true;
 
-    // Init the degree map (-1 are not yet added nodes and -2 saturated nodes):
+    // Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
     DNodeIntMap degree(P.g);
     for (DNodeIt v(P.g); v != INVALID; ++v) degree[v] = -1;
 #ifdef BDHST
@@ -184,24 +184,28 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
 #endif
     degree[P.g.target(min_arc)] = 0;
 
-    DNodeVector added;
-    added.push_back(source);
-    added.push_back(P.g.target(min_arc));
+    DNodeVector border;
+    border.push_back(P.g.target(min_arc));
     for (int i = 1; i < P.nnodes - 1; i++) {
         min_arc_weight = MY_INF;
-        for (DNode u: added)
-            if (degree[u] >= 0)// already added and not saturated
-                for (DNodeIt v(P.g); v != INVALID; ++v)
-                    if (degree[v] == -1)// not yet added
-                        if (P.weight[P.arc_map[u][v]] < min_arc_weight) {
-                            min_arc = P.arc_map[u][v];
-                            min_arc_weight = P.weight[min_arc];
-                        }
+        for (DNode u: border)
+            for (OutArcIt e(P.g, u); e != INVALID; ++e) {
+                auto v = P.g.target(e);
+                if (degree[v] == -1)// not yet added
+                    if (P.weight[e] < min_arc_weight) {
+                        min_arc = e;
+                        min_arc_weight = P.weight[e];
+                    }
+            }
         P.solution[min_arc] = true;
         auto u = P.g.source(min_arc), v = P.g.target(min_arc);
-        if (++degree[u] == max_degree - (u != source)) degree[u] = -2;// becomes saturated with max_degree-1 children
+        degree[u]++;
+        if (degree[u] == max_degree - (u != source)) {// becomes saturated with max_degree-1 children
+            auto aux = remove(border.begin(), border.end(), u);
+            border.erase(aux, border.end());
+        }
         degree[v] = 0;
-        added.push_back(v);
+        border.push_back(v);
     }
     return calc_height(P, source);
 }
@@ -458,6 +462,7 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
+    srand(seed);
     graph_filename = argv[1];
     maxtime = atoi(argv[2]);
     if (argc >= 4) tsplib = strcmp(argv[3], "-tsplib=true") == 0;
