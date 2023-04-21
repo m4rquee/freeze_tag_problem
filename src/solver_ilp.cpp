@@ -7,7 +7,7 @@
 #include <lemon/list_graph.h>
 #include <string>
 
-const unsigned seed = 42;// seed to the random number generator
+int seed = 42;// seed to the random number generator
 
 class LocalSearchCB : public GRBCallback {
     Problem_Instance &P;
@@ -144,8 +144,11 @@ protected:
             auto old_sol_h = MY_EPS * (this->*solution_value)(height);
             setSolution(height, new_sol_height);
             new_sol_height *= MY_EPS;
-            cout << "\n→ Found solution with local search of height " << new_sol_height << " over " << old_sol_h
-                 << "\n\n";
+            if (old_sol_h != new_sol_height)
+                cout << "\n→ Found solution with local search of height " << new_sol_height << " over " << old_sol_h;
+            else
+                cout << "\n→ Found solution with local search of same height, but better total cost";
+            cout << "\n\n";
             useSolution();// informs gurobi of this solution
         }
     }
@@ -234,7 +237,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
-    env->set(GRB_IntParam_Seed, (int) (P.start.time_since_epoch().count() % INT_MAX));// seed);
+    env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
     env->set(GRB_DoubleParam_Cutoff, (UB + 1) * COST_MULTIPLIER);// set the best know UB
     GRBModel model = GRBModel(*env);
@@ -459,6 +462,8 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
+    using namespace std::chrono;
+    seed = (int) duration_cast<minutes>(system_clock::now().time_since_epoch()).count();
     srand(seed);
     graph_filename = argv[1];
     maxtime = atoi(argv[2]);
