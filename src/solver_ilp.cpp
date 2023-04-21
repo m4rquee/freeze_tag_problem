@@ -57,12 +57,15 @@ protected:
     }
 
     void calc_height(DNode &v, double v_height) {
-        if (node_degree[v] > 0)
-            for (OutArcIt e(P.g, v); e != INVALID; ++e)
-                if (arc_value[e]) {
-                    auto child = P.g.target(e);
-                    calc_height(child, node_height[child] = v_height + P.weight[e]);
-                }
+        for (OutArcIt e(P.g, v); e != INVALID; ++e) {
+            setSolution(x_e[e], arc_value[e]);
+            auto rev = findArc(P.g, P.g.target(e), P.g.source(e));
+            setSolution(x_e[rev], false);
+            if (arc_value[e]) {
+                auto child = P.g.target(e);
+                calc_height(child, node_height[child] = v_height + P.weight[e]);
+            }
+        }
     }
 
     void heap_init() {
@@ -122,9 +125,13 @@ protected:
             // Make shallowest_ancestor child of the new_father:
             auto new_arc = P.arc_map[new_father][shallowest_ancestor];
             setSolution(x_e[new_arc], arc_value[new_arc] = true);// connect shallowest_ancestor to the new_father
+            auto rev = findArc(P.g, P.g.target(new_arc), P.g.source(new_arc));
+            setSolution(x_e[rev], false);
             for (InArcIt e(P.g, shallowest_ancestor); e != INVALID; ++e)
                 if (arc_value[e]) {// remove the arc to the shallowest_ancestor from its old father
                     setSolution(x_e[e], arc_value[e] = false);
+                    rev = findArc(P.g, P.g.target(e), P.g.source(e));
+                    setSolution(x_e[rev], false);
                     break;
                 }
             node_height[shallowest_ancestor] = node_height[new_father] + P.weight[new_arc];
@@ -138,11 +145,9 @@ protected:
             auto new_sol_height = 0.0;
             for (DNodeIt v(P.g); v != INVALID; ++v) {
                 new_sol_height = max(new_sol_height, node_height[v]);
-                setSolution(h_v[v], node_height[v]);
             }
 
             auto old_sol_h = MY_EPS * (this->*solution_value)(height);
-            setSolution(height, new_sol_height);
             new_sol_height *= MY_EPS;
             if (old_sol_h != new_sol_height)
                 cout << "\n→ Found solution with local search of height " << new_sol_height << " over " << old_sol_h;
@@ -250,12 +255,12 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_DoubleParam_OptimalityTol, MY_EPS);
 
     // ILP solver parameters: ----------------------------------------------------
-    if (P.nnodes >= 300) model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
+    /*if (P.nnodes >= 300) model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
     else
         model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_OPTIMALITY);
     model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
-    model.set(GRB_DoubleParam_Heuristics, 0.25);
+    model.set(GRB_DoubleParam_Heuristics, 0.25);*/
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g);                                          // if arc e is present in the tree
