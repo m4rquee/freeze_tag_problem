@@ -157,8 +157,10 @@ bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string
         GA.SetAttrib(e, "style=dashed splines=true");
         if (P.nnodes < 100) GA.SetLabel(e, weight * MY_EPS);
     }
+    auto max_height = 0;
+    for (DNodeIt v(P.g); v != INVALID; ++v) max_height = max(max_height, P.node_height[v]);
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (P.node_height[v] * MY_EPS == UB) GA.SetColor(v, "Cyan");// highlight the deepest nodes
+        if (P.node_height[v] == max_height) GA.SetColor(v, "Cyan");// highlight the deepest nodes
     GA.SetColor(P.source, "Red");
 #ifdef BDHST
     GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
