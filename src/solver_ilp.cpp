@@ -7,6 +7,7 @@
 #include <lemon/list_graph.h>
 #include <string>
 
+#define GRB_CB_START -1
 int seed = 42;// seed to the random number generator
 
 class LocalSearchCB : public GRBCallback {
@@ -21,6 +22,7 @@ class LocalSearchCB : public GRBCallback {
     DNodeIntMap node_degree;
 
     double (GRBCallback::*solution_value)(GRBVar) = nullptr;
+    void (LocalSearchCB::*set_solution)(GRBVar, double) = nullptr;
 
     typedef pair<int, int> h_d_pair;
     typedef pair<h_d_pair, DNode> h_d_triple;
@@ -32,9 +34,22 @@ class LocalSearchCB : public GRBCallback {
 public:
     LocalSearchCB(Problem_Instance &_P, Digraph::ArcMap<GRBVar> &_x_e, Digraph::NodeMap<GRBVar> &_h_v, GRBVar &_height)
         : P(_P), x_e(_x_e), h_v(_h_v), height(_height), arc_value(P.g), node_height(P.g), node_degree(P.g),
-          node_height_heap(P.nnodes - 1), available_fathers(P.nnodes - 1) {}
+          node_height_heap(P.nnodes - 1), available_fathers(P.nnodes - 1) {
+        for (ArcIt e(P.g); e != INVALID; ++e)// starts all arcs values
+            arc_value[e] = P.solution[e];
+        for (DNodeIt v(P.g); v != INVALID; ++v)// starts all nodes height
+            node_height[v] = P.node_height[v];
+    }
+
+    double init() {
+        where = GRB_CB_START;
+        callback();
+        return P.solution_height;
+    }
 
 protected:
+    inline void setSolutionStart(GRBVar v, double val) {}
+
     inline DNode get_father(const DNode &v) {
         for (InArcIt e(P.g, v); e != INVALID; ++e)
             if (arc_value[e]) return P.g.source(e);
@@ -58,9 +73,9 @@ protected:
 
     void calc_height(DNode &v, double v_height) {
         for (OutArcIt e(P.g, v); e != INVALID; ++e) {
-            setSolution(x_e[e], arc_value[e]);
+            (this->*set_solution)(x_e[e], arc_value[e]);
             auto rev = findArc(P.g, P.g.target(e), P.g.source(e));
-            setSolution(x_e[rev], false);
+            (this->*set_solution)(x_e[rev], false);
             if (arc_value[e]) {
                 auto child = P.g.target(e);
                 calc_height(child, node_height[child] = v_height + P.weight[e]);
@@ -88,18 +103,20 @@ protected:
 
     void callback() override {
         // Get the correct function to obtain the values of the lp variables:
-        if (where == GRB_CB_MIPSOL)// all variables are integer
+        if (where == GRB_CB_MIPSOL) {// all variables are integer
             solution_value = &LocalSearchCB::getSolution;
+            set_solution = &LocalSearchCB::setSolution;
+            for (ArcIt e(P.g); e != INVALID; ++e)// saves all arcs values
+                arc_value[e] = (this->*solution_value)(x_e[e]) >= 1 - MY_EPS;
+            for (DNodeIt v(P.g); v != INVALID; ++v)// saves all nodes height
+                node_height[v] = (this->*solution_value)(h_v[v]);
+        } else if (where == GRB_CB_START)
+            set_solution = &LocalSearchCB::setSolutionStart;
         else
             return;// this code do not take advantage of the other options
 
-        for (ArcIt e(P.g); e != INVALID; ++e)// saves all arcs values
-            arc_value[e] = (this->*solution_value)(x_e[e]) >= 1 - MY_EPS;
-        for (DNodeIt v(P.g); v != INVALID; ++v)// saves all nodes height
-            node_height[v] = (this->*solution_value)(h_v[v]);
-
         heap_init();
-        auto found_better_sol = false;
+        bool found_new_sol = false;
         while (!available_fathers.empty()) {
             h_d_triple popped_triple = available_fathers.front();
             DNode &new_father = popped_triple.second;
@@ -120,60 +137,50 @@ protected:
             } while (shallowest_ancestor == INVALID);
 
             if (shallowest_ancestor == INVALID) continue;// could not find an improving swap with this candidate father
-            found_better_sol = true;
+            found_new_sol = true;
 
-            // Make shallowest_ancestor child of the new_father:
-            auto new_arc = P.arc_map[new_father][shallowest_ancestor];
-            setSolution(x_e[new_arc], arc_value[new_arc] = true);// connect shallowest_ancestor to the new_father
-            auto rev = findArc(P.g, P.g.target(new_arc), P.g.source(new_arc));
-            setSolution(x_e[rev], false);
+            // Make shallowest_ancestor child of the new_father: -------------------------------------------------------
+            Arc rev;
             for (InArcIt e(P.g, shallowest_ancestor); e != INVALID; ++e)
                 if (arc_value[e]) {// remove the arc to the shallowest_ancestor from its old father
-                    setSolution(x_e[e], arc_value[e] = false);
+                    (this->*set_solution)(x_e[e], arc_value[e] = false);
                     rev = findArc(P.g, P.g.target(e), P.g.source(e));
-                    setSolution(x_e[rev], false);
+                    (this->*set_solution)(x_e[rev], false);
                     break;
                 }
+            // Connect shallowest_ancestor to the new_father:
+            auto new_arc = P.arc_map[new_father][shallowest_ancestor];
+            (this->*set_solution)(x_e[new_arc], arc_value[new_arc] = true);
+            rev = findArc(P.g, P.g.target(new_arc), P.g.source(new_arc));
+            (this->*set_solution)(x_e[rev], false);
+
             node_height[shallowest_ancestor] = node_height[new_father] + P.weight[new_arc];
             calc_height(shallowest_ancestor, node_height[shallowest_ancestor]);// update the whole subtree
             heap_init();
         }
 
-
         // Has found an improving solution and so informs it:
-        if (found_better_sol) {
-            auto new_sol_height = 0.0;
-            for (DNodeIt v(P.g); v != INVALID; ++v) {
-                new_sol_height = max(new_sol_height, node_height[v]);
-            }
-
-            auto old_sol_h = MY_EPS * (this->*solution_value)(height);
-            new_sol_height *= MY_EPS;
-            if (old_sol_h != new_sol_height)
-                cout << "\n→ Found solution with local search of height " << new_sol_height << " over " << old_sol_h;
-            else
-                cout << "\n→ Found solution with local search of same height, but better total cost";
+        if (found_new_sol) {
+            auto new_sol_h = 0.0;
+            for (DNodeIt v(P.g); v != INVALID; ++v) new_sol_h = max(new_sol_h, node_height[v]);
+            if (new_sol_h < P.solution_height) {// copy the solution if its better:
+                for (ArcIt e(P.g); e != INVALID; ++e) P.solution[e] = arc_value[e];
+                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_height[v] = (int) node_height[v];
+                cout << "\n→ Found a solution with local search of height " << MY_EPS * new_sol_h << " over "
+                     << MY_EPS * P.solution_height;
+                P.solution_height = new_sol_h;
+            } else
+                cout << "\n→ Found a solution with local search of same height, but better total cost";
             cout << "\n\n";
             useSolution();// informs gurobi of this solution
         }
     }
 };
 
-int calc_height(Problem_Instance &P, DNode &root) {
-    P.node_height[root] = 0;
-    for (OutArcIt e(P.g, root); e != INVALID; ++e)
-        if (P.solution[e]) {
-            auto child = P.g.target(e);
-            int child_height = P.weight[P.arc_map[root][child]] + calc_height(P, child);
-            P.node_height[root] = max(P.node_height[root], child_height);
-        }
-    return P.node_height[root];
-}
-
 double greedy_solution(Problem_Instance &P, int max_degree) {
     // Connect the source to some closest node:
     Arc min_arc = INVALID;
-    double min_arc_weight = MY_INF;
+    int min_arc_weight = GRB_MAXINT;
     auto source = P.source != INVALID ? P.source : Digraph::nodeFromId(rand() % countNodes(P.g));
     for (OutArcIt e(P.g, source); e != INVALID; ++e)
         if (P.weight[e] < min_arc_weight) {
@@ -181,6 +188,10 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
             min_arc_weight = P.weight[e];
         }
     P.solution[min_arc] = true;
+    P.node_height[source] = 0;
+    auto target = P.g.target(min_arc);
+    P.node_height[target] = min_arc_weight;
+    P.solution_height = min_arc_weight;
 
     // Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
     DNodeIntMap degree(P.g);
@@ -190,12 +201,12 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
 #else
     degree[source] = -2;
 #endif
-    degree[P.g.target(min_arc)] = 0;
+    degree[target] = 0;
 
     DNodeVector border;
-    border.push_back(P.g.target(min_arc));
+    border.push_back(target);
     for (int i = 1; i < P.nnodes - 1; i++) {
-        min_arc_weight = MY_INF;
+        min_arc_weight = GRB_MAXINT;
         for (DNode u: border)
             for (OutArcIt e(P.g, u); e != INVALID; ++e) {
                 auto v = P.g.target(e);
@@ -205,8 +216,10 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
                         min_arc_weight = P.weight[e];
                     }
             }
-        P.solution[min_arc] = true;
         auto u = P.g.source(min_arc), v = P.g.target(min_arc);
+        P.solution[min_arc] = true;
+        P.node_height[v] = P.node_height[u] + min_arc_weight;
+        P.solution_height = max(P.solution_height, P.node_height[v]);
         degree[u]++;
         if (degree[u] == max_degree - (u != source)) {// becomes saturated with max_degree-1 children
             auto aux = remove(border.begin(), border.end(), u);
@@ -215,7 +228,7 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
         degree[v] = 0;
         border.push_back(v);
     }
-    return calc_height(P, source);
+    return P.solution_height;
 }
 
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
@@ -230,21 +243,17 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1));
     auto auxUB = MAX_EDGE * minimum_depth;
     LB = max(LB / MY_EPS, (double) P.source_radius);
+    bool improved = auxUB < UB / MY_EPS;
     UB = max(LB, min(UB / MY_EPS, auxUB));
     // Construct an initial greedy solution:
-    auto greedy_sol = greedy_solution(P, max_degree);
-    UB = min(UB, greedy_sol);
-
-    cout << "Set parameter LB to value " << LB * MY_EPS << endl;
-    cout << "Set parameter UB to value " << UB * MY_EPS << endl;
-    auto COST_MULTIPLIER = pow(10, ceil(log10((double) P.nnodes * UB)));// make a tens power
-    cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
+    auto greedy_UB = greedy_solution(P, max_degree);
+    improved |= greedy_UB < UB;
+    UB = min(UB, greedy_UB);
 
     // Gurobi ILP problem setup:
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
-    env->set(GRB_DoubleParam_Cutoff, (UB + 1) * COST_MULTIPLIER);// set the best know UB
     GRBModel model = GRBModel(*env);
 #ifdef BDHST
     model.set(GRB_StringAttr_ModelName, "BDHST Problem");
@@ -263,13 +272,33 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_DoubleParam_Heuristics, 0.25);*/
 
     // ILP problem variables: ----------------------------------------------------
-    Digraph::ArcMap<GRBVar> x_e(P.g);                                          // if arc e is present in the tree
-    Digraph::NodeMap<GRBVar> h_v(P.g);                                         // height of node v
-    auto height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");// tree's height
+    Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the tree
+    Digraph::NodeMap<GRBVar> h_v(P.g);// height of node v
+    GRBVar height;                    // tree's height
 #ifdef BDHST
     Digraph::NodeMap<GRBVar> r_v(P.g);// if node v is the root
 #endif
-    height.set(GRB_DoubleAttr_Start, greedy_sol);
+
+    // Callback setup: -----------------------------------------------------------
+#ifndef BDHST
+    LocalSearchCB cb(P, x_e, h_v, height);
+    model.setCallback(&cb);
+    UB = min(UB, cb.init());// try to improve the initial solution with local search
+#endif
+
+    // Cutoff and bounds setup: --------------------------------------------------
+    cout << "Set parameter LB to value " << LB * MY_EPS << endl;
+    cout << "Set parameter UB to value " << UB * MY_EPS << endl;
+    auto height_sum = 0.0;
+    for (DNodeIt v(P.g); v != INVALID; ++v) height_sum += P.node_height[v];
+    double COST_MULTIPLIER = pow(10, ceil(log10(height_sum)));// make a tens power
+    cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
+    auto cutoff = height_sum + UB * COST_MULTIPLIER;
+    model.set(GRB_DoubleParam_Cutoff, cutoff);// set the best know UB
+
+    // ILP problem variables startup: --------------------------------------------
+    height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");
+    height.set(GRB_DoubleAttr_Start, P.solution_height);
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
@@ -281,6 +310,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         char name[100];
         sprintf(name, "h_%s", P.vname[v].c_str());
         h_v[v] = model.addVar(0.0, UB, 1.0, GRB_INTEGER, name);
+        h_v[v].set(GRB_DoubleAttr_Start, P.node_height[v]);
 #ifdef BDHST
         sprintf(name, "s_%s", P.vname[v].c_str());
         r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
@@ -372,6 +402,10 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         if (v != P.source)
             for (InArcIt e(P.g, v); e != INVALID; ++e) {
                 constrCount++;
+                if (UB <= P.weight[e]) {// cannot use this edge
+                    model.addConstr(x_e[e] == 0);
+                    continue;
+                }
                 model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (x_e[e] - 1));
                 if (P.nnodes > 500) continue;// reduce the model size for big instances
                 constrCount++;
@@ -390,19 +424,16 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         }
     cout << "-> only one of a parallel arc pair is allowed - " << constrCount << " constrs" << endl;
 
-    // Callback setup: -----------------------------------------------------------
-#ifndef BDHST
-    LocalSearchCB cb(P, x_e, h_v, height);
-    model.setCallback(&cb);
-#endif
-
     // ILP solving: --------------------------------------------------------------
+    model.write("gurobi_model.lp");
+    ofstream out("gurobi_model.lp", ios::out);
+    out.close();
     model.optimize();// trys to solve optimally within the time limit
     P.stop_counter();
 
     LB = max(LB, ceil(model.get(GRB_DoubleAttr_ObjBound)) / COST_MULTIPLIER) * MY_EPS;
-    bool improved = model.get(GRB_IntAttr_SolCount) > 0;
-    if (!improved) return false;
+    improved |= model.get(GRB_IntAttr_SolCount) > 0;
+    if (!improved) return improved;
 
     // A better solution was found:
     cout << endl << "Nodes height: ";
