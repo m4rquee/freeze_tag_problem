@@ -147,15 +147,14 @@ bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string
         if (P.solution[e]) used_arcs[i++] = e;
         if (!P.original[e]) continue;
         GA.SetColor(e, only_active_edges ? "#00000000" : "#00000070");
-        GA.SetAttrib(e, "style=dotted");
+        GA.SetAttrib(e, "style=dotted arrowhead=none");
     }
     for (i = 0; i < P.nnodes - 1; i++) {
         auto e = used_arcs[i];
-        auto weight = P.weight[e];
+        if (P.nnodes < 100) GA.SetLabel(e, P.weight[e] * MY_EPS);
         if (P.original[e]) e = P.g.addArc(P.g.source(e), P.g.target(e));// duplicate if already exists
         GA.SetColor(e, "#ff000070");
         GA.SetAttrib(e, "style=dashed splines=true");
-        if (P.nnodes < 100) GA.SetLabel(e, weight * MY_EPS);
     }
     auto max_height = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) max_height = max(max_height, P.node_height[v]);
