@@ -289,15 +289,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     // Cutoff and bounds setup: --------------------------------------------------
     cout << "Set parameter LB to value " << LB * MY_EPS << endl;
     cout << "Set parameter UB to value " << UB * MY_EPS << endl;
-    auto height_sum = 0.0;
-    for (DNodeIt v(P.g); v != INVALID; ++v) height_sum += P.node_height[v];
-    double COST_MULTIPLIER = pow(10, ceil(log10(height_sum)));// make a tens power
-    cout << "Set parameter COST_MULTIPLIER to value " << COST_MULTIPLIER << endl;
-    auto cutoff = height_sum + UB * COST_MULTIPLIER;
+    auto cutoff = UB;
     model.set(GRB_DoubleParam_Cutoff, cutoff);// set the best know UB
 
     // ILP problem variables startup: --------------------------------------------
-    height = model.addVar(LB, UB, COST_MULTIPLIER, GRB_INTEGER, "height");
+    height = model.addVar(LB, UB, 1.0, GRB_INTEGER, "height");
     height.set(GRB_DoubleAttr_Start, P.solution_height);
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
@@ -309,7 +305,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
         sprintf(name, "h_%s", P.vname[v].c_str());
-        h_v[v] = model.addVar(0.0, UB, 1.0, GRB_INTEGER, name);
+        h_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
         h_v[v].set(GRB_DoubleAttr_Start, P.node_height[v]);
 #ifdef BDHST
         sprintf(name, "s_%s", P.vname[v].c_str());
@@ -431,7 +427,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.optimize();// trys to solve optimally within the time limit
     P.stop_counter();
 
-    LB = max(LB, ceil(model.get(GRB_DoubleAttr_ObjBound)) / COST_MULTIPLIER) * MY_EPS;
+    LB = max(LB, model.get(GRB_DoubleAttr_ObjBound)) * MY_EPS;
     improved |= model.get(GRB_IntAttr_SolCount) > 0;
     if (!improved) return improved;
 
