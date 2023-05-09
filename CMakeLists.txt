@@ -37,6 +37,12 @@ target_link_libraries(ftp_solver m pthread)
 target_link_libraries(ftp_solver graph_utils)
 target_link_libraries(ftp_solver gurobi_c++ gurobi100)
 
+# Target executable and linking (Freeze-Tag Problem for Trees):
+add_executable(ftp_solver_tree src/solver_tree.cpp src/problem_utils.cpp)
+target_link_libraries(ftp_solver_tree m pthread)
+target_link_libraries(ftp_solver_tree graph_utils)
+target_link_libraries(ftp_solver_tree gurobi_c++ gurobi100)
+
 # Target executable and linking (Degree-Bounded Minimum Height Spanning Tree):
 add_executable(bdhst_solver src/solver_ilp.cpp src/problem_utils.cpp)
 set_target_properties(bdhst_solver PROPERTIES COMPILE_DEFINITIONS "BDHST")
