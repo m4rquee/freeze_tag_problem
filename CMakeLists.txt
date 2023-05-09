@@ -44,7 +44,7 @@ target_link_libraries(bdhst_solver m pthread)
 target_link_libraries(bdhst_solver graph_utils)
 target_link_libraries(bdhst_solver gurobi_c++ gurobi100)
 
-#[[add_executable(ftp_qntd src/solver_ilp_ftp_qntd.cpp)
-target_link_libraries(ftp_qntd m pthread)
-target_link_libraries(ftp_qntd graph_utils)
-target_link_libraries(ftp_qntd gurobi_c++ gurobi100)]]
+add_executable(ftp_solver_spt src/solver_ilp_spt.cpp src/problem_utils.cpp)
+target_link_libraries(ftp_solver_spt m pthread)
+target_link_libraries(ftp_solver_spt graph_utils)
+target_link_libraries(ftp_solver_spt gurobi_c++ gurobi100)
