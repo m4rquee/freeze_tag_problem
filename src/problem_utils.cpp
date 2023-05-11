@@ -9,6 +9,7 @@ Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNode
         arc_map[g.source(e)][g.target(e)] = e;
         solution[e] = false;
     }
+    for (DNodeIt v(g); v != INVALID; ++v) node_height[v] = -1;
 }
 
 void Problem_Instance::start_counter() { start = chrono::system_clock::now(); }
@@ -139,28 +140,28 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 
 bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string &msg, bool only_active_edges) {
     DigraphAttributes GA(P.g, P.vname, P.px, P.py);
-    GA.SetDefaultDNodeAttrib("color=LightGray style=filled width=0.1 height=0.1 fixedsize=false");
+    GA.SetDigraphAttrib("splines=true");
+    GA.SetDefaultDNodeAttrib("color=gray style=filled shape=circle fixedsize=true");
+    GA.SetDefaultArcAttrib("color=black arrowhead=none fontcolor=red");
+    if (only_active_edges) GA.SetDefaultArcAttrib("style=invis");
 
     int i = 0;
     ArcVector used_arcs(P.nnodes - 1);
     for (ArcIt e(P.g); e != INVALID; ++e) {
         if (P.solution[e]) used_arcs[i++] = e;
-        if (!P.original[e]) continue;
-        GA.SetColor(e, only_active_edges ? "#00000000" : "#00000070");
-        GA.SetAttrib(e, "style=dotted arrowhead=none");
     }
     for (i = 0; i < P.nnodes - 1; i++) {
         auto e = used_arcs[i];
         if (P.nnodes < 100) GA.SetLabel(e, P.weight[e] * MY_EPS);
         if (P.original[e]) e = P.g.addArc(P.g.source(e), P.g.target(e));// duplicate if already exists
-        GA.SetColor(e, "#ff000070");
-        GA.SetAttrib(e, "style=dashed splines=true");
+        GA.SetColor(e, "red");
+        GA.SetAttrib(e, "style=dashed arrowhead=normal");
     }
     auto max_height = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) max_height = max(max_height, P.node_height[v]);
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (P.node_height[v] == max_height) GA.SetColor(v, "Cyan");// highlight the deepest nodes
-    GA.SetColor(P.source, "Red");
+        if (P.node_height[v] == max_height) GA.SetColor(v, "cyan");// highlight the deepest nodes
+    GA.SetColor(P.source, "pink");
 #ifdef BDHST
     GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
                 ". LB = " + DoubleToString(LB) + ". " + msg);
