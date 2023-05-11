@@ -38,7 +38,7 @@ public:
         for (ArcIt e(P.g); e != INVALID; ++e)// starts all arcs values
             arc_value[e] = P.solution[e];
         for (DNodeIt v(P.g); v != INVALID; ++v)// starts all nodes height
-            node_height[v] = P.node_height[v];
+            node_height[v] = P.node_makespan[v];
     }
 
     double init() {
@@ -165,7 +165,7 @@ protected:
             for (DNodeIt v(P.g); v != INVALID; ++v) new_sol_h = max(new_sol_h, node_height[v]);
             if (new_sol_h < P.solution_height) {// copy the solution if its better:
                 for (ArcIt e(P.g); e != INVALID; ++e) P.solution[e] = arc_value[e];
-                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_height[v] = (int) node_height[v];
+                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_makespan[v] = (int) node_height[v];
                 cout << "\n→ Found a solution with local search of height " << MY_EPS * new_sol_h << " over "
                      << MY_EPS * P.solution_height;
                 P.solution_height = new_sol_h;
@@ -188,9 +188,9 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
             min_arc_weight = P.weight[e];
         }
     P.solution[min_arc] = true;
-    P.node_height[source] = 0;
+    P.node_makespan[source] = 0;
     auto target = P.g.target(min_arc);
-    P.node_height[target] = min_arc_weight;
+    P.node_makespan[target] = min_arc_weight;
     P.solution_height = min_arc_weight;
 
     // Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
@@ -218,8 +218,8 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
             }
         auto u = P.g.source(min_arc), v = P.g.target(min_arc);
         P.solution[min_arc] = true;
-        P.node_height[v] = P.node_height[u] + min_arc_weight;
-        P.solution_height = max(P.solution_height, P.node_height[v]);
+        P.node_makespan[v] = P.node_makespan[u] + min_arc_weight;
+        P.solution_height = max(P.solution_height, P.node_makespan[v]);
         degree[u]++;
         if (degree[u] == max_degree - (u != source)) {// becomes saturated with max_degree-1 children
             auto aux = remove(border.begin(), border.end(), u);
@@ -306,7 +306,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         char name[100];
         sprintf(name, "h_%s", P.vname[v].c_str());
         h_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
-        h_v[v].set(GRB_DoubleAttr_Start, P.node_height[v]);
+        h_v[v].set(GRB_DoubleAttr_Start, P.node_makespan[v]);
 #ifdef BDHST
         sprintf(name, "s_%s", P.vname[v].c_str());
         r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
@@ -436,7 +436,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     UB = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         int node_height = ceil(h_v[v].get(GRB_DoubleAttr_X));
-        P.node_height[v] = node_height;
+        P.node_makespan[v] = node_height;
         cout << P.vname[v].c_str() << '-' << node_height * MY_EPS << ";";
 #ifdef BDHST
         if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
@@ -449,7 +449,6 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         LB = UB;
 
     // Display the best know solution:
-    int i = 0;
     cout << endl << "Tree edges: ";
     for (ArcIt e(P.g); e != INVALID; ++e) {
         bool active = x_e[e].get(GRB_DoubleAttr_X) >= 1 - MY_EPS;

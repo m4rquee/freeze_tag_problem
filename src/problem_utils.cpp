@@ -4,12 +4,12 @@ Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNode
                                    DNode &sourcenode, int nnodes, int time_limit, ArcIntMap &pweight,
                                    ArcBoolMap &poriginal, int psource_radius)
     : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
-      weight(pweight), original(poriginal), solution(g), source_radius(psource_radius), node_height(g) {
+      weight(pweight), original(poriginal), solution(g), source_radius(psource_radius), node_makespan(g) {
     for (ArcIt e(g); e != INVALID; ++e) {
         arc_map[g.source(e)][g.target(e)] = e;
         solution[e] = false;
     }
-    for (DNodeIt v(g); v != INVALID; ++v) node_height[v] = -1;
+    for (DNodeIt v(g); v != INVALID; ++v) node_makespan[v] = -1;
 }
 
 void Problem_Instance::start_counter() { start = chrono::system_clock::now(); }
@@ -158,9 +158,9 @@ bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string
         GA.SetAttrib(e, "style=dashed arrowhead=normal");
     }
     auto max_height = 0;
-    for (DNodeIt v(P.g); v != INVALID; ++v) max_height = max(max_height, P.node_height[v]);
+    for (DNodeIt v(P.g); v != INVALID; ++v) max_height = max(max_height, P.node_makespan[v]);
     for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (P.node_height[v] == max_height) GA.SetColor(v, "cyan");// highlight the deepest nodes
+        if (P.node_makespan[v] == max_height) GA.SetColor(v, "cyan");// highlight the deepest nodes
     GA.SetColor(P.source, "pink");
 #ifdef BDHST
     GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
