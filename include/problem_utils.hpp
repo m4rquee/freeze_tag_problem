@@ -35,7 +35,7 @@ public:
     ArcBoolMap solution;
     int source_radius;                  // the source radius if there is one, or the graph`s radius
     map<DNode, map<DNode, Arc>> arc_map;// used for fast arc lookup
-    DNodeIntMap node_height;
+    DNodeIntMap node_makespan;
     int solution_height;
 };
 
