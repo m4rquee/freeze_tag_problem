@@ -1,10 +1,8 @@
 import glob
 import subprocess
 
-import numpy as np
-
 EPS = [0, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3, 5, 10]
-P = [1, 2, np.inf]
+P = [1, 2, float('inf')]
 for eps in EPS:
     output = []
     for p in P:
