@@ -166,8 +166,8 @@ bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string
     GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
                 ". LB = " + DoubleToString(LB) + ". " + msg);
 #else
-    GA.SetLabel("Scheduling starting from node " + P.vname[P.source] + " of makespan " + DoubleToString(UB) +
-                ". LB = " + DoubleToString(LB) + ". " + msg);
+    GA.SetLabel("Scheduling starting from node " + P.vname[P.source] + " of makespan " + to_string(UB) +
+                ". LB = " + to_string(LB) + ". " + msg);
 #endif
     GA.View();
     return true;

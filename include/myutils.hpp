@@ -1,278 +1,129 @@
-#ifndef MYUTILS_DEFINE
-#define MYUTILS_DEFINE
+#ifndef MY_UTILS_DEFINE
+#define MY_UTILS_DEFINE
 
-#include <string>
-#include <vector>
-#include <time.h>
-#include <math.h>
-using namespace std;
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <math.h>
 #include <sstream>
+#include <string>
+#include <time.h>
+#include <vector>
 
-//================================================================================================================
-// SOME CONSTANTS
-//
-// maximum number of characters used by a command used by the system routine.
-#define MAXCOMMANDSIZE 1000
-// used to verify if number are the same, within some error of MY_EPS
+using namespace std;
 
-//================================================================================================================
-//    ROUTINES TO DEAL WITH PDF
+extern double MY_EPS;    // used to verify if numbers are the same, within some error of MY_EPS
+extern double MY_INF;    // all numbers above this threshold are treated as infinity
+extern string PDF_READER;// Program to open a pdf file.
+                         // You can change it for another pdf viewer,
+                         // but the program must run in a terminal with the syntax:
+                         // <pdfreader>  <pdffile>
 
-//==========================================================================================================
-//     * Global Variables
-//
-class myutilsdefaultparameters {
-public:
-    myutilsdefaultparameters();
-    string pdfreader;
-    double *P_MY_EPS;
-    double *P_MY_INF;
-};
+//====================================================================================
+//     * Dealing with PDF files and strings
 
-extern double MY_EPS;
-extern double MY_INF;
+int view_pdf_file(const string &filename);// opens a pdf file using the program defined at PDF_READER
 
-// Constructor for the global variables declared in myutils.
-// Put all here, so we can have visibility of all global variables
-inline myutilsdefaultparameters::myutilsdefaultparameters() {
-    pdfreader = "open";// Program to open a pdf file in Mac OS X
-    // You can change the term "evince" by any other pdf viewer.
-    // But the program must run in a terminal with the sintax
-    // <pdfreader>  <pdffile>
-    // Example:
-    //             evince  file.pdf
-    //             open    file.pdf
-    //             xpdf    file.pdf
-    P_MY_EPS = &MY_EPS;
-    P_MY_INF = &MY_INF;
-    *P_MY_EPS = 0.000001;
-    *P_MY_INF = 1000000000000.0;
-}
+inline bool is_space(char c) { return (c == ' ') || (c == '\t'); }
 
-extern myutilsdefaultparameters myutilsparameters;
-
-inline void set_MY_EPS(double neweps) { *(myutilsparameters.P_MY_EPS) = neweps; }
-inline void set_MY_INF(double newinf) { *(myutilsparameters.P_MY_INF) = newinf; }
-
-// set default pdf reader used in some programs
-// For example, if it is possible to open a pdf file
-// with the command "open file.pdf"
-// then, you can use the following command to define
-// the "open" as a pdf reader
-// set_pdfreader("open");
-void set_pdfreader(string programname);
-
-// To see a pdf file. It uses the pdf reader defined by set_pdfreader.
-int view_pdffile(string filename);
-
-inline bool is_space(char c) {
-    return (c == ' ') || (c == '\t');
-}
-
-inline bool is_comment(string line) {
+inline bool is_comment(string line, string prefix) {// if the given prefix appears after all blank characters of a line
     int i = 0;
-    cout << "line in function: " << line << endl;
-    while (i < (line.length()) && (is_space(line[i]))) i++;
-    if (i == line.length()) return true;// consider empty line as a comment
-    if (line[i] == '#') return true;    // first non-null character is #
-    return false;
+    while (i < line.length() && is_space(line[i])) i++;// skip over blank characters
+
+    if (i == line.length()) return true;                  // consider empty lines as comments
+    if (i + prefix.length() > line.length()) return false;// cannot contain the prefix
+
+    return !line.compare(i, prefix.length(), prefix);// has the prefix after all blank characters
 }
 
-// comment if prefix appear after blanks -- ROUTINE NOT TESTED
-inline bool is_comment(string line, string prefix) {
-    int i = 0;
-    while (i < (line.length()) && (is_space(line[i]))) i++;
-    if (i == line.length()) return true;// consider empty line as a comment
-    if (i + prefix.length() > line.length()) return false;
-    return !line.compare(i, prefix.length(), prefix);
-}
-
-inline bool IsSuffix(string str, string suf) {
+inline bool is_suffix(string str, string suf) {
     return str.size() >= suf.size() && !str.compare(str.size() - suf.size(), suf.size(), suf);
 }
 
-inline bool IsPrefix(string str, string pre) {
-    return str.size() >= pre.size() && !str.compare(0, pre.size(), pre);
-}
+inline bool is_prefix(string str, string pre) { return str.size() >= pre.size() && !str.compare(0, pre.size(), pre); }
 
 inline int hex2int(string s) {
     int n = s.length(), d = 0;
     for (int i = 0; i < n; i++) {
         char c = tolower(s[i]);
-        if ((c >= '0') && (c <= '9')) d = d * 16 + (c - '0');
-        else if ((c >= 'a') && (c <= 'f'))
+        if (c >= '0' && c <= '9') d = d * 16 + (c - '0');
+        else if (c >= 'a' && c <= 'f')
             d = d * 16 + (c - 'a' + 10);
-        else {
-            cout << "Error: character \"" << s[i] << "\" in string \""
-                 << s << "\" is not a hexadecimal digit.\n";
-            exit(0);
-        }
+        else
+            throw invalid_argument("Character that is not a hexadecimal digit found.");
     }
     return d;
 }
 
-inline bool FileExists(const string &filename) {
+inline bool file_exists(const string &filename) {
     ifstream f(filename.c_str());
     return f.is_open();
 }
 
-//====================================================================================================
-//     * Type Conversion Routines
-// In C++11 we have new convertion functions, but some libraries
-// are still not compatible, like the Gurobi Library.
 
-/* float              stof(const string& str, size_t *idx = 0); */
-/* double             stod(const string& str, size_t *idx = 0); */
-/* long double        stold(const string& str, size_t *idx = 0); */
-/* int                stoi(const string& str, size_t *idx = 0, int base = 10); */
-/* long               stol(const string& str, size_t *idx = 0, int base = 10); */
-/* unsigned long      stoul(const string& str, size_t *idx = 0, int base = 10); */
-/* long long          stoll(const string& str, size_t *idx = 0, int base = 10); */
-/* unsigned long long stoull(const string& str, size_t *idx = 0, int base = 10); */
-/* string to_string(int val); */
-/* string to_string(unsigned val); */
-/* string to_string(long val); */
-/* string to_string(unsigned long val); */
-/* string to_string(long long val); */
-/* string to_string(unsigned long long val); */
-/* string to_string(float val); */
-/* string to_string(double val); */
-/* string to_string(long double val); */
+inline char char_tolower(char c) { return tolower(c); }
 
-/* template <typename T> string ToString ( T val ){ */
-/*     std::stringstream retval; */
-/*     retval << val; */
-/*     return retval; */
-/* } */
+inline void lowercase(string &s) { transform(s.begin(), s.end(), s.begin(), char_tolower); }
 
-inline char chartolower(char c) {
-    if (c <= 'Z' && c >= 'A') return c - ('Z' - 'z');
-    return c;
-}
-
-inline void lowercase(string &s) { std::transform(s.begin(), s.end(), s.begin(), chartolower); }
-
-// left trim
-static inline string &ltrim(string &str) {
-    str.erase(str.begin(), std::find_if(str.begin(), str.end(),
-                                        std::not1(std::ptr_fun<int, int>(std::isspace))));
+static inline string &ltrim(string &str) {// left trim
+    str.erase(str.begin(), find_if(str.begin(), str.end(), not1(ptr_fun<int, int>(isspace))));
     return str;
 }
 
-// right trim
-static inline string &rtrim(string &str) {
-    str.erase(std::find_if(str.rbegin(), str.rend(),
-                           std::not1(std::ptr_fun<int, int>(std::isspace)))
-                      .base(),
-              str.end());
+static inline string &rtrim(string &str) {// right trim
+    str.erase(find_if(str.rbegin(), str.rend(), not1(ptr_fun<int, int>(isspace))).base(), str.end());
     return str;
 }
 
-// left and right trim
-static inline string &trim(string &str) { return ltrim(rtrim(str)); }
 
-// convert a double value to string
-inline std::string DoubleToString(double val) {
-    std::stringstream out;
-    out << val;
-    return out.str();
-}
-//{return to_string(val);} // this is only valid in c++11
-
-// convert a int value to string
-inline std::string IntToString(int val) {
-    std::stringstream out;
-    out << val;
-    return out.str();
-}
-//{return to_string(val);}
-
-// convert a string to double
-inline double StringToDouble(string s) {
-    double d;
-    stringstream(s) >> d;
-    return d;
-}
-//{return stod(s);}
-
-// convert a string to int
-inline int StringToInt(string s) {
-    int n;
-    stringstream(s) >> n;
-    return n;
-}
-//{return stoi(s);}
-
-inline void Pause() {
-    cout << "Pause";
-    std::cin.get();
-    cout << "\n";
+static inline string &trim(string &str) {// left and right trim
+    return ltrim(rtrim(str));
 }
 
 //====================================================================================
 //     * Functions to test values
-// Return true if variable x is fractional (within a certain small error).
-inline bool IsFrac(double x) {
+
+inline bool is_frac(double x) {// if x is fractional (within a certain small error)
     double f;
     f = ceil(x - MY_EPS) - x;
-    if (f < MY_EPS) return false;
-    if (f > 1.0 - MY_EPS) return false;
-    return true;//    eps  <= ceil(x)-x <= 1-eps
+    if (f < MY_EPS || f > 1.0 - MY_EPS) return false;
+    return true;// MY_EPS <= ceil(x)-x <= 1-MY_EPS
 }
 
-// Return true if variable x is fractional (within a certain small error).
-inline bool IsEqual(double x, double y) {
-    if (x > y + MY_EPS) return false;
-    if (x < y - MY_EPS) return false;
-    return true;//    y-eps  <= x <= y+eps
+inline bool is_equal(double x, double y) {// if x and y are equal (within a certain small error)
+    if (x > y + MY_EPS || x < y - MY_EPS) return false;
+    return true;// y-eps <= x <= y+eps
 }
 
-// For the next functions, it is supposed that 0 <= X <= 1
-inline bool BinaryIsOne(double x) { return (x > (double) (1.0 - MY_EPS)); }
-inline bool BinaryIsZero(double x) { return (x < MY_EPS); }
-inline bool NonBinary(double x) { return (x > MY_EPS) && (x < 1.0 - MY_EPS); }
+// The next functions suppose that 0 <= x <= 1:
+inline bool bin_is_one(double x) { return x > (double) (1.0 - MY_EPS); }
+inline bool bin_is_zero(double x) { return x < MY_EPS; }
 
-// verify if a vector contains only integer values
-bool VectorIsInteger(vector<double> &v);
-
-//================================================================================================================
-//    ROUTINES FOR TIME MANIPULATION
-
-long time70(void);                /* returns the time in seconds since Jan 1, 1970 */
-void printtime(long t);           /* print the time t in days, hours, minutes and seconds.*/
-void sprinttime(char *s, long t); /* prints the time in the string s Example: 1 hour, 2 minutes, 3 seconds*/
-void shortprinttime(long t);      /* prints the time in the string s. Ex.: 11d,22h:33m:44s   */
-
-
-//==================================================================================
-//     * Routines/classes to read a table of strings from a text file
+// ========================================================================
+//     * Reading tables from text files
 class StringTable {
 public:
     StringTable(int nrows, ifstream &file);
     StringTable(int nrows, int ncols);
     int nrows, ncols;
     vector<string> header;
-    vector<int> columnsize;
+    vector<int> column_size;
     vector<vector<string>> line;
-    int columnindex(string columnname);   //return column index, or -1 if it does not exists
-    string first(string columnname);      // return the first element of the column
-    int firstint(string columnname);      // return the first element of the column as int
-    double firstdouble(string columnname);// return the first element of the column as double
-    bool readcolumn(string columnname, vector<string> &scol);
-    bool readcolumn(string columnname, vector<int> &scol);
-    bool readcolumn(string columnname, vector<double> &scol);
+    int column_index(const string &column_name);   // return the column index, or -1 if it does not exist
+    string first(const string &column_name);       // return the first element of the column
+    int first_int(const string &column_name);      // return the first element of the column as int
+    double first_double(const string &column_name);// return the first element of the column as double
+    bool read_column(const string &column_name, vector<string> &col);
+    bool read_column(const string &column_name, vector<int> &col);
+    bool read_column(const string &column_name, vector<double> &col);
     bool entry(int row, int col, string &entry);
     bool entry(int row, int col, double &entry);
     bool entry(int row, int col, int &entry);
     void print();
 };
 
-//return the column index, or (-1) if it does not exist
-inline int StringTable::columnindex(string columnname) {
-    string cname = columnname;
+inline int StringTable::column_index(const string &column_name) {// return the column index, or -1 if it does not exist
+    string cname = column_name;
     lowercase(cname);
     for (int col = 0; col < this->ncols; col++)
         if (cname == this->header[col]) return col;
@@ -280,44 +131,33 @@ inline int StringTable::columnindex(string columnname) {
 }
 
 inline bool StringTable::entry(int row, int col, string &entry) {
-    if (row < 0) return false;
-    if (row >= this->nrows) return false;
-    if (col < 0) return false;
-    if (col >= this->ncols) return false;
+    if (row < 0 || row >= this->nrows) return false;
+    if (col < 0 || col >= this->ncols) return false;
     entry = this->line[row][col];
     return true;
 }
 
 inline bool StringTable::entry(int row, int col, double &entry) {
-    if (row < 0) return false;
-    if (row >= this->nrows) return false;
-    if (col < 0) return false;
-    if (col >= this->ncols) return false;
-    entry = StringToDouble(this->line[row][col]);
+    if (row < 0 || row >= this->nrows) return false;
+    if (col < 0 || col >= this->ncols) return false;
+    entry = stod(this->line[row][col]);
     return true;
 }
 
 inline bool StringTable::entry(int row, int col, int &entry) {
-    if (row < 0) return false;
-    if (row >= this->nrows) return false;
-    if (col < 0) return false;
-    if (col >= this->ncols) return false;
-    entry = StringToInt(this->line[row][col]);
+    if (row < 0 || row >= this->nrows) return false;
+    if (col < 0 || col >= this->ncols) return false;
+    entry = stoi(this->line[row][col]);
     return true;
 }
 
-// Given a filename that may include its path, this routine
-// return the path, ending with '/'
-inline string getpath(string filename) {
+inline string get_path(string filename) {// the path (ending with "/") of a given filename
     int n = filename.size();
-    if (n == 0) {
-        cout << "Error: Invalid filename." << endl;
-        exit(0);
-    }
+    if (n == 0) throw invalid_argument("Invalid filename.");
     n--;
-    while ((n >= 0) && (filename[n] != '/')) n--;
+    while (n >= 0 && filename[n] != '/') n--;
     if (n < 0) return "./";
     return filename.substr(0, n + 1);
 }
 
-#endif
+#endif// MY_UTILS_DEFINE

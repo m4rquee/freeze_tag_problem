@@ -21,7 +21,7 @@ link_directories(${CMAKE_SOURCE_DIR}/lemon/lemon-1.3.1/build/lemon)
 link_directories($ENV{GUROBI_HOME}/lib)
 
 # Utils used in all targets
-add_library(graph_utils src/mygraphlib.cpp src/geompack.cpp src/myutils.cpp src/mycolor.cpp include/problem_utils.hpp)
+add_library(graph_utils src/mygraphlib.cpp src/myutils.cpp src/mycolor.cpp include/problem_utils.hpp)
 link_libraries(graph_utils -l:libemon.a) # link the lemon binary
 
 # Compiler flags
@@ -35,16 +35,17 @@ endif ()
 add_executable(ftp_solver src/solver_ilp.cpp src/problem_utils.cpp)
 target_link_libraries(ftp_solver m pthread)
 target_link_libraries(ftp_solver graph_utils)
-target_link_libraries(ftp_solver gurobi_c++ gurobi100)
+target_link_libraries(ftp_solver gurobi_c++ gurobi110)
 
 # Target executable and linking (Degree-Bounded Minimum Height Spanning Tree):
 add_executable(bdhst_solver src/solver_ilp.cpp src/problem_utils.cpp)
 set_target_properties(bdhst_solver PROPERTIES COMPILE_DEFINITIONS "BDHST")
 target_link_libraries(bdhst_solver m pthread)
 target_link_libraries(bdhst_solver graph_utils)
-target_link_libraries(bdhst_solver gurobi_c++ gurobi100)
+target_link_libraries(bdhst_solver gurobi_c++ gurobi110)
 
+# Target executable and linking (Freeze-Tag Problem with Shortest Path Tree formulation):
 add_executable(ftp_solver_spt src/solver_ilp_spt.cpp src/problem_utils.cpp)
 target_link_libraries(ftp_solver_spt m pthread)
 target_link_libraries(ftp_solver_spt graph_utils)
-target_link_libraries(ftp_solver_spt gurobi_c++ gurobi100)
+target_link_libraries(ftp_solver_spt gurobi_c++ gurobi110)

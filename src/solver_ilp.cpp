@@ -477,7 +477,6 @@ int main(int argc, char *argv[]) {
     ArcBoolMap original(g);  // if an arc is original
     vector<DNode> V;
 
-    set_pdfreader("xdg-open");// the Linux will choose the default one
     if (argc < 3) {
         cout << endl
              << "Integer Linear Program for the Freeze-Tag Problem using the Gurobi solver;" << endl

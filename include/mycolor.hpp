@@ -1,16 +1,14 @@
-#ifndef MYCOLOR_DEFINE
-#define MYCOLOR_DEFINE
+#ifndef MY_COLOR_DEFINE
+#define MY_COLOR_DEFINE
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <sstream>
-#include <iomanip>
-#include <vector>
-#include <map>
 #include "myutils.hpp"
-
-using namespace std;
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
 
 typedef struct {
     string colorname, rgb;
@@ -55,4 +53,4 @@ int SizeVisualDistinctColor();
 int ith_VisualDistinctColor(int i);
 inline string ith_VisualDistinctColorName(int i) { return ColorG.name(ith_VisualDistinctColor(i)); }
 
-#endif
+#endif// MY_COLOR_DEFINE

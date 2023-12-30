@@ -141,12 +141,12 @@ bool GenerateVertexPositions(Graph &g,
     out << "\tsize = \"11, 11\";\n";
     out << "\tnode [shape = \"circle\"];\n";
     for (NodeIt v(g); v!=INVALID; ++v) {
-        linha = "\t";    linha += IntToString(g.id(v));   linha += ";\n";
+        linha = "\t";    linha += to_string(g.id(v));   linha += ";\n";
         out << linha;
     }
     for (EdgeIt a(g); a!=INVALID; ++a) {
-        linha = "\t";  linha += IntToString(g.id(g.u(a)));
-        linha += "  -- ";  linha += IntToString(g.id(g.v(a))); linha += ";\n";
+        linha = "\t";  linha += to_string(g.id(g.u(a)));
+        linha += "  -- ";  linha += to_string(g.id(g.v(a))); linha += ";\n";
         out << linha;
     }
     out << "}\n";
@@ -248,12 +248,12 @@ bool GenerateVertexPositions(Digraph &g,
     out << "\tsize = \"11, 11\";\n";
     out << "\tnode [shape = \"circle\"];\n";
     for (DNodeIt v(g); v!=INVALID; ++v) {
-        linha = "\t";    linha += IntToString(g.id(v));   linha += ";\n";
+        linha = "\t";    linha += to_string(g.id(v));   linha += ";\n";
         out << linha;
     }
     for (ArcIt a(g); a!=INVALID; ++a) {
-        linha = "\t";  linha += IntToString(g.id(g.source(a)));
-        linha += "  -> ";  linha += IntToString(g.id(g.target(a))); linha += ";\n";
+        linha = "\t";  linha += to_string(g.id(g.source(a)));
+        linha += "  -> ";  linha += to_string(g.id(g.target(a))); linha += ";\n";
         out << linha;
     }
     out << "}\n";
@@ -341,8 +341,8 @@ bool GenerateVertexPositions(Digraph &g,DNodePosMap  &px, DNodePosMap &py){
 
 bool GetNodeCoordinates(GraphTable &GT, string colx, NodePosMap &posx, string coly, NodePosMap &posy)
 {
-    if ((GT.NodeTable->columnindex(colx)!=-1)&&
-        (GT.NodeTable->columnindex(coly)!=-1)){
+    if ((GT.NodeTable->column_index(colx)!=-1)&&
+        (GT.NodeTable->column_index(coly)!=-1)){
         GT.GetColumn(colx,posx);
         GT.GetColumn(coly,posy);
     } else GenerateVertexPositions(GT.g,posx,posy);
@@ -351,8 +351,8 @@ bool GetNodeCoordinates(GraphTable &GT, string colx, NodePosMap &posx, string co
 
 bool GetNodeCoordinates(DigraphTable &GT, string colx, DNodePosMap &posx, string coly, DNodePosMap &posy)
 {
-    if ((GT.NodeTable->columnindex(colx)!=-1)&&
-        (GT.NodeTable->columnindex(coly)!=-1)){
+    if ((GT.NodeTable->column_index(colx)!=-1)&&
+        (GT.NodeTable->column_index(coly)!=-1)){
         GT.GetColumn(colx,posx);
         GT.GetColumn(coly,posy);
     } else GenerateVertexPositions(GT.g,posx,posy);
@@ -373,7 +373,7 @@ bool InitGraphTable(StringTable &T,Graph &g,StringToNodeMap &smap,
                     string colname_v1,string colname_v2,LineToEdgeMap &edgemap)
 {  // Make a correspondence between row i and edge e
     edgemap.reserve(T.nrows); edgemap.resize(T.nrows);
-    int col_u=T.columnindex(colname_v1),col_v=T.columnindex(colname_v2);
+    int col_u=T.column_index(colname_v1),col_v=T.column_index(colname_v2);
     string name_u,name_v;
     for (int i=0;i<T.nrows;i++){
         T.entry(i,col_u,name_u);  T.entry(i,col_v,name_v);
@@ -395,7 +395,7 @@ bool InitGraphTable(StringTable &T,Digraph &g,StringToDNodeMap &smap,
                     string colname_source,string colname_target,LineToArcMap &arcmap)
 {  // Make a correspondence between row i and arc a
     arcmap.reserve(T.nrows); arcmap.resize(T.nrows);
-    int col_source=T.columnindex(colname_source),col_target=T.columnindex(colname_target);
+    int col_source=T.column_index(colname_source),col_target=T.column_index(colname_target);
     //cout << "nrows = " << T.nrows << endl;
     //cout << "source and target: " << col_source << "   " << col_target << endl;
     string name_source,name_target;
@@ -409,48 +409,48 @@ bool InitGraphTable(StringTable &T,Digraph &g,StringToDNodeMap &smap,
 //------------------------------------------------------------
 // Read a column with Node info
 bool ReadGraphColumn(StringTable &T,LineToNodeMap &nodemap,string colname,NodeValueMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[nodemap[i]]); return(true);}
 
 bool ReadGraphColumn(StringTable &T,LineToNodeMap &nodemap,string colname,NodeStringMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[nodemap[i]]); return(true);}
 
 bool ReadGraphColumn(StringTable &T,LineToNodeMap &nodemap,string colname,NodeIntMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[nodemap[i]]); return(true);}
 //------------------------------------------------------------
 // Read a column with Edge info
 bool ReadGraphColumn(StringTable &T,LineToEdgeMap &edgemap,string colname,EdgeValueMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[edgemap[i]]); return(true);}
 bool ReadGraphColumn(StringTable &T,LineToEdgeMap &edgemap,string colname,EdgeStringMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[edgemap[i]]); return(true);}
 bool ReadGraphColumn(StringTable &T,LineToEdgeMap &edgemap,string colname,EdgeIntMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[edgemap[i]]); return(true);}
 //------------------------------------------------------------
 // Read a column with DNode info
 bool ReadGraphColumn(StringTable &T,LineToDNodeMap &nodemap,string colname,DNodeValueMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[nodemap[i]]); return(true);}
 bool ReadGraphColumn(StringTable &T,LineToDNodeMap &nodemap,string colname,DNodeStringMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[nodemap[i]]); return(true);}
 bool ReadGraphColumn(StringTable &T,LineToDNodeMap &nodemap,string colname,DNodeIntMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[nodemap[i]]); return(true);}
 //------------------------------------------------------------
 // Read a column with Arc info
 bool ReadGraphColumn(StringTable &T,LineToArcMap &arcmap,string colname,ArcValueMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[arcmap[i]]); return(true);}
 bool ReadGraphColumn(StringTable &T,LineToArcMap &arcmap,string colname,ArcStringMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[arcmap[i]]); return(true);}
 bool ReadGraphColumn(StringTable &T,LineToArcMap &arcmap,string colname,ArcIntMap &read) {
-    int col = T.columnindex(colname);
+    int col = T.column_index(colname);
     for (int i=0;i<T.nrows;i++) T.entry(i,col,read[arcmap[i]]); return(true);}
 //------------------------------------------------------------
 
@@ -533,7 +533,7 @@ bool GenerateRandomEuclideanDigraph(Digraph &g,
         V[i] = g.addNode();    // new node
         px[V[i]] = SizeX*drand48();
         py[V[i]] = SizeY*drand48();
-        vname[V[i]] = IntToString(i+1);// name of node is i+1
+        vname[V[i]] = to_string(i+1);// name of node is i+1
     }
     for (int i=0;i<n;i++)
         for (int j=i+1;j<n;j++) {
@@ -546,138 +546,7 @@ bool GenerateRandomEuclideanDigraph(Digraph &g,
     return(true);
 }
 
-
-// Generate a triangulated Graph, building the Delaunay
-// triangulation of random points
-// Uses the geompack program, available in
-// http://people.sc.fsu.edu/~jburkardt/cpp_src/geompack/geompack.html
-bool GenerateTriangulatedGraph(Graph &g, // return with generated graph
-                               NodeStringMap &vname, // return with name of the nodes
-                               NodePosMap& px, // return with x-position of the nodes
-                               NodePosMap& py, // return with y-position of the nodes
-                               EdgeValueMap& weight, // return with weight of edges
-                               int n, // number of nodes
-                               double SizeX, // coordinate x is a random number in [0,SizeX)
-                               double SizeY) // coordinate y is a random number in [0,SizeY)
-{
-    int i; // n=number of nodes
-    int ntri; // number of Delaunay triangles
-    Node *V = new Node[n];
-    double *p = new double[2*n+2];// node coodinates are (x;y) = ( p[2*i] ; p[2*i+1] )
-    int *tri = new int[6*n]; // Each 3 elements are the indexes of a triangle
-    int *tri_nabe = new int[6*n];
-
-    if ((V==NULL)||(p==NULL)||(tri==NULL)||(tri_nabe==NULL)){
-        cout << "Memory allocation error, number of nodes " << n << " too large\n";
-        exit(0);}
-
-    for (i=0;i<n;i++) {
-        V[i] = g.addNode();    // gera um vértice nó do grafo
-        px[V[i]] = SizeX*drand48();  // nodes are random points
-        py[V[i]] = SizeY*drand48();
-        p[2*i]   = px[V[i]];
-        p[2*i+1] = py[V[i]];
-        vname[V[i]] = IntToString(i+1);  // name of the node is i+1
-    }
-    if (r8tris2 ( n, p, &ntri, tri,  tri_nabe )) {  printf("ERROR\n");Pause(); }
-    for (i=0;i<ntri;i++) {
-        int a,b,c;
-        a = tri[3*i]-1; b = tri[3*i+1]-1; c = tri[3*i+2]-1;
-        // each triangle if formed with nodes  V[a] , V[b] , V[c]
-        // insert edges without duplications
-        if ((findEdge(g,V[a],V[b])==INVALID) && (findEdge(g,V[b],V[a])==INVALID)){
-            Edge e = g.addEdge(V[a],V[b]);
-            weight[e] = sqrt(pow(px[V[a]]-px[V[b]],2) + pow(py[V[a]]-py[V[b]],2));
-        }
-        if ((findEdge(g,V[a],V[c])==INVALID)  && (findEdge(g,V[c],V[a])==INVALID)){
-            Edge e = g.addEdge(V[a],V[c]);
-            weight[e] = sqrt(pow(px[V[a]]-px[V[c]],2) + pow(py[V[a]]-py[V[c]],2));
-        }
-        if ((findEdge(g,V[b],V[c])==INVALID) && (findEdge(g,V[c],V[b])==INVALID)) {
-            Edge e = g.addEdge(V[b],V[c]);
-            weight[e] = sqrt(pow(px[V[b]]-px[V[c]],2) + pow(py[V[b]]-py[V[c]],2));
-        }
-    }
-    delete[] V;
-    delete[] p;
-    delete[] tri;
-    delete[] tri_nabe;
-    return(true);
-}
-
-// Generate a triangulated Digraph, building the Delaunay
-// triangulation of random points. Each edge of the Delaunay triangulation
-// leads to two arcs (in both senses)
-// Uses the geompack program, available in
-// http://people.sc.fsu.edu/~jburkardt/cpp_src/geompack/geompack.html
-bool GenerateTriangulatedDigraph(Digraph &g,
-                                 DNodeStringMap &vname, // name of the nodes
-                                 DNodePosMap  &px, // x-position of the nodes
-                                 DNodePosMap  &py, // y-position of the nodes
-                                 ArcValueMap   & weight, // weight of edges
-                                 int n, // number of nodes
-                                 double SizeX, // coordinate x is a random number in [0,SizeX)
-                                 double SizeY) // coordinate y is a random number in [0,SizeY)
-{
-    int i; // n=number of nodes
-    DNode *V = new DNode[n];
-    double *p = new double[2*n+2];// node coodinates are (x;y) = ( p[2*i] ; p[2*i+1] )
-    int *tri = new int[6*n]; // Each 3 elements are the indexes of a triangle
-    int ntri;
-    int *tri_nabe = new int[6*n];
-
-    if ((V==NULL)||(p==NULL)||(tri==NULL)||(tri_nabe==NULL)){
-        cout << "Memory allocation error, number of nodes " << n << " too large\n";
-        exit(0);}
-
-    for (i=0;i<n;i++) {   // insere os vértices (pontos aleatórios no plano [0,SizeX]x[0,SizeY] )
-        V[i] = g.addNode(); // gera um vértice nó do grafo
-        px[V[i]] = SizeX*drand48();  // nodes are random points
-        py[V[i]] = SizeY*drand48();
-        p[2*i]   = px[V[i]];
-        p[2*i+1] = py[V[i]];
-        vname[V[i]] = IntToString(i+1);// name of node is i+1
-    }
-    if (r8tris2 ( n, p, &ntri, tri,  tri_nabe )) {  printf("ERROR\n");Pause(); }
-    for (i=0;i<ntri;i++) {
-        int a,b,c;
-        a = tri[3*i]-1; b = tri[3*i+1]-1; c = tri[3*i+2]-1;
-        // each triangle if formed with nodes  V[a] , V[b] , V[c]
-        // insert arcs without duplications in both senses
-        if (findArc(g,V[a],V[b])==INVALID){
-            Arc e = g.addArc(V[a],V[b]);
-            weight[e] = sqrt(pow(px[V[a]]-px[V[b]],2) + pow(py[V[a]]-py[V[b]],2));
-        }
-        if (findArc(g,V[b],V[a])==INVALID){
-            Arc e = g.addArc(V[b],V[a]);
-            weight[e] = sqrt(pow(px[V[b]]-px[V[a]],2) + pow(py[V[b]]-py[V[a]],2));
-        }
-        if (findArc(g,V[a],V[c])==INVALID){
-            Arc e = g.addArc(V[a],V[c]);
-            weight[e] = sqrt(pow(px[V[a]]-px[V[c]],2) + pow(py[V[a]]-py[V[c]],2));
-        }
-        if (findArc(g,V[c],V[a])==INVALID){
-            Arc e = g.addArc(V[c],V[a]);
-            weight[e] = sqrt(pow(px[V[c]]-px[V[a]],2) + pow(py[V[c]]-py[V[a]],2));
-        }
-        if (findArc(g,V[b],V[c])==INVALID) {
-            Arc e = g.addArc(V[b],V[c]);
-            weight[e] = sqrt(pow(px[V[b]]-px[V[c]],2) + pow(py[V[b]]-py[V[c]],2));
-        }
-        if (findArc(g,V[c],V[b])==INVALID) {
-            Arc e = g.addArc(V[c],V[b]);
-            weight[e] = sqrt(pow(px[V[c]]-px[V[b]],2) + pow(py[V[c]]-py[V[b]],2));
-        }
-    }
-    delete[] V;
-    delete[] p;
-    delete[] tri;
-    delete[] tri_nabe;
-    return(true);
-}
-
-
-//Generate a random complete euclidean Graph
+//Generate a random complete Euclidean Graph
 bool GenerateRandomEuclideanGraph(Graph &g,
                                   NodeStringMap &vname, // node names
                                   NodePosMap& px, // x-position of the nodes
@@ -698,7 +567,7 @@ bool GenerateRandomEuclideanGraph(Graph &g,
         V[i] = g.addNode(); // generate a new node
         px[V[i]] = SizeX*drand48();
         py[V[i]] = SizeY*drand48();
-        vname[V[i]] = IntToString(i+1); // name of the node is i+1
+        vname[V[i]] = to_string(i+1); // name of the node is i+1
     }
     for (i=0;i<n;i++)
         for (j=i+1;j<n;j++) {
@@ -735,7 +604,7 @@ bool GenerateRandomGraph(Graph &g,
         V[i] = g.addNode(); // generate a new node
         px[V[i]] = SizeX*drand48();
         py[V[i]] = SizeY*drand48();
-        vname[V[i]] = IntToString(i+1); // name of the node is i+1
+        vname[V[i]] = to_string(i+1); // name of the node is i+1
     }
     int nedges=0;
     for (i=0;i<n;i++)
@@ -865,7 +734,7 @@ bool GraphAttributes::View() // text displayed below the figure
         fprintf(fp," ];\n");
     }
     for (EdgeIt e(this->g); e!=INVALID; ++e) {
-        if (IsSuffix(this->edge_attrib[e],"color=\"Invis\"")) continue;// only to speed graphviz exec.
+        if (is_suffix(this->edge_attrib[e],"color=\"Invis\"")) continue;// only to speed graphviz exec.
         fprintf(fp,"\t%s  -- %s [",this->node_name[this->g.u(e)].c_str(),this->node_name[this->g.v(e)].c_str());
         fprintf(fp,"%s ",this->edge_attrib[e].c_str());
         fprintf(fp," ];\n");
@@ -876,7 +745,7 @@ bool GraphAttributes::View() // text displayed below the figure
     sprintf(cmd,"%s -Tpdf %s -o %s",mygraphlibparameters.graphvizdrawingprogram.c_str(),tempname,outputname);
     system(cmd);
     //cout << "Grafo em "<< tempname << "\n";
-    view_pdffile(outputname);
+    view_pdf_file(outputname);
     //pause();
     return(true);
 }
@@ -940,7 +809,7 @@ bool DigraphAttributes::View() // text displayed below the figure
     sprintf(cmd,"%s -Tpdf %s -o %s",mygraphlibparameters.graphvizdrawingprogram.c_str(),tempname,outputname);
     system(cmd);
     //cout << "Grafo em "<< tempname << "\n";
-    view_pdffile(outputname);
+    view_pdf_file(outputname);
     //pause();
     return(true);
 }
@@ -949,7 +818,7 @@ bool DigraphAttributes::View() // text displayed below the figure
 bool randomgraph(Graph &g,NodeStringMap &vname, int n, double p)
 {
     vector<Node> v(n);
-    for (int i=0;i<n;i++){ v[i] = g.addNode(); vname[v[i]] = IntToString(i+1);  }
+    for (int i=0;i<n;i++){ v[i] = g.addNode(); vname[v[i]] = to_string(i+1);  }
     for (int i=0;i<n-1;i++) for (int j=i+1;j<n;j++) if (drand48()<p) g.addEdge(v[i],v[j]);
     return(true);
 }
@@ -957,7 +826,7 @@ bool randomgraph(Graph &g,NodeStringMap &vname, int n, double p)
 bool randomdigraph(Digraph &g,DNodeStringMap &vname, int n, double p)
 {
     vector<DNode> v(n);
-    for (int i=0;i<n;i++){ v[i] = g.addNode(); vname[v[i]] = IntToString(i+1);  }
+    for (int i=0;i<n;i++){ v[i] = g.addNode(); vname[v[i]] = to_string(i+1);  }
     for (int i=0;i<n-1;i++)
         for (int j=i+1;j<n;j++)
             if (drand48()<p) {

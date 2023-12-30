@@ -16,7 +16,6 @@
 #include <string>
 #include "myutils.hpp"
 #include "mycolor.hpp"
-#include "geompack.hpp"
 
 using namespace std;
 using namespace lemon;
@@ -217,33 +216,6 @@ bool GenerateVertexPositions(Digraph &g,    ArcValueMap  &custo,
 
 void PrintGraph(Graph  &g, NodeStringMap &vname, EdgeValueMap &graphweight);
 
-
-
-// Generate a triangulated Digraph, building the Delaunay
-// triangulation of random points. Each edge of the Delaunay triangulation
-// leads to two arcs (in both senses)
-// Uses the geompack program, available in
-// http://people.sc.fsu.edu/~jburkardt/cpp_src/geompack/geompack.html
-bool GenerateTriangulatedDigraph(Digraph &g,
-                                 DNodeStringMap &vname, // name of the nodes
-                                 DNodePosMap    &px, // x-position of the nodes
-                                 DNodePosMap    &py, // y-position of the nodes
-                                 ArcValueMap     & weight, // weight of edges
-                                 int n, // number of nodes
-                                 double SizeX, // coordinate x is a random number in [0,SizeX)
-                                 double SizeY); // coordinate y is a random number in [0,SizeY)
-
-// the same as above, but for non-oriented edges
-bool GenerateTriangulatedGraph(Graph &g, // return with generated graph
-                               NodeStringMap &vname, // return with name of the nodes
-                               NodePosMap    & px, // return with x-position of the nodes
-                               NodePosMap    & py, // return with y-position of the nodes
-                               EdgeValueMap  & weight, // return with weight of edges
-                               int n, // number of nodes
-                               double SizeX, // coordinate x is a random number in [0,SizeX)
-                               double SizeY); // coordinate y is a random number in [0,SizeY)
-
-
 class AdjacencyMatrix {
 public:
     AdjacencyMatrix(Graph &graph,EdgeValueMap &graphweight,double NonEdgeValue);
@@ -319,7 +291,7 @@ DNode GetDNodeByName(Digraph &g,
 
 // Return true if the edge vector is integer
 inline bool IsInteger(Graph &g, EdgeValueMap &vx)
-{for(EdgeIt e(g);e!=INVALID; ++e) if(IsFrac(vx[e]))return false; return(true);}
+{for(EdgeIt e(g);e!=INVALID; ++e) if(is_frac(vx[e]))return false; return(true);}
 
 
 //--------------------------------------------------------------------------------
@@ -380,8 +352,8 @@ inline GraphTable::GraphTable(string filename,Graph &graph):
     string type=Header->first("type");
     lowercase(type);
     if(type=="graph"){
-        int nnodes=StringToInt(Header->first("nnodes"));
-        int nedges=StringToInt(Header->first("nedges"));
+        int nnodes=stoi(Header->first("nnodes"));
+        int nedges=stoi(Header->first("nedges"));
 
         this->NodeTable = new StringTable(nnodes,file);
         if (!this->NodeTable) {cout<<"Error: Memory allocation for NodeTable problem.\n";exit(0);}
@@ -402,37 +374,37 @@ inline GraphTable::~GraphTable()
 
 
 inline bool GraphTable::GetColumn(string colname,NodeValueMap &column){
-    int col = this->NodeTable->columnindex(colname);
+    int col = this->NodeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->NodeTable->nrows;i++)
         this->NodeTable->entry(i,col,column[this->line2node[i]]);
     return(true);}
 inline bool GraphTable::GetColumn(string colname,NodeIntMap &column){
-    int col = this->NodeTable->columnindex(colname);
+    int col = this->NodeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->NodeTable->nrows;i++)
         this->NodeTable->entry(i,col,column[this->line2node[i]]);
     return(true);}
 inline bool GraphTable::GetColumn(string colname,NodeStringMap &column){
-    int col = this->NodeTable->columnindex(colname);
+    int col = this->NodeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->NodeTable->nrows;i++)
         this->NodeTable->entry(i,col,column[this->line2node[i]]);
     return(true);}
 inline bool GraphTable::GetColumn(string colname,EdgeValueMap &column){
-    int col = this->EdgeTable->columnindex(colname);
+    int col = this->EdgeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->EdgeTable->nrows;i++)
         this->EdgeTable->entry(i,col,column[this->line2edge[i]]);
     return(true);}
 inline bool GraphTable::GetColumn(string colname,EdgeIntMap &column){
-    int col = this->EdgeTable->columnindex(colname);
+    int col = this->EdgeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->EdgeTable->nrows;i++)
         this->EdgeTable->entry(i,col,column[this->line2edge[i]]);
     return(true);}
 inline bool GraphTable::GetColumn(string colname,EdgeStringMap &column){
-    int col = this->EdgeTable->columnindex(colname);
+    int col = this->EdgeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->EdgeTable->nrows;i++)
         this->EdgeTable->entry(i,col,column[this->line2edge[i]]);
@@ -505,8 +477,8 @@ inline DigraphTable::DigraphTable(string filename,Digraph &graph):
     string type=Header->first("type");
     lowercase(type);
     if(type=="digraph"){
-        int nnodes=StringToInt(Header->first("nnodes"));
-        int narcs=StringToInt(Header->first("narcs"));
+        int nnodes=stoi(Header->first("nnodes"));
+        int narcs=stoi(Header->first("narcs"));
 
         this->NodeTable = new StringTable(nnodes,file);
         if (!this->NodeTable) {cout<<"Error: Memory allocation for NodeTable problem.\n";exit(0);}
@@ -527,37 +499,37 @@ inline DigraphTable::~DigraphTable()
 
 
 inline bool DigraphTable::GetColumn(string colname,DNodeValueMap &column){
-    int col = this->NodeTable->columnindex(colname);
+    int col = this->NodeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->NodeTable->nrows;i++)
         this->NodeTable->entry(i,col,column[this->line2node[i]]);
     return(true);}
 inline bool DigraphTable::GetColumn(string colname,DNodeIntMap &column){
-    int col = this->NodeTable->columnindex(colname);
+    int col = this->NodeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->NodeTable->nrows;i++)
         this->NodeTable->entry(i,col,column[this->line2node[i]]);
     return(true);}
 inline bool DigraphTable::GetColumn(string colname,DNodeStringMap &column){
-    int col = this->NodeTable->columnindex(colname);
+    int col = this->NodeTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->NodeTable->nrows;i++)
         this->NodeTable->entry(i,col,column[this->line2node[i]]);
     return(true);}
 inline bool DigraphTable::GetColumn(string colname,ArcValueMap &column){
-    int col = this->ArcTable->columnindex(colname);
+    int col = this->ArcTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->ArcTable->nrows;i++)
         this->ArcTable->entry(i,col,column[this->line2arc[i]]);
     return(true);}
 inline bool DigraphTable::GetColumn(string colname,ArcIntMap &column){
-    int col = this->ArcTable->columnindex(colname);
+    int col = this->ArcTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->ArcTable->nrows;i++)
         this->ArcTable->entry(i,col,column[this->line2arc[i]]);
     return(true);}
 inline bool DigraphTable::GetColumn(string colname,ArcStringMap &column){
-    int col = this->ArcTable->columnindex(colname);
+    int col = this->ArcTable->column_index(colname);
     if (col==-1) {cout << "Error: Column name \""+colname+"\" missing.\n";exit(0);}
     for (int i=0;i<this->ArcTable->nrows;i++)
         this->ArcTable->entry(i,col,column[this->line2arc[i]]);
@@ -676,10 +648,10 @@ inline void GraphAttributes::SetColor(Edge e,string s){
 
 inline void GraphAttributes::SetLabel(Node v,string s){this->SetAttrib(v,"label=\""+s+"\"");}
 inline void GraphAttributes::SetLabel(Edge e,string s){this->SetAttrib(e,"label=\""+s+"\"");}
-inline void GraphAttributes::SetLabel(Node v,double d){this->SetLabel(v,DoubleToString(d));}
-inline void GraphAttributes::SetLabel(Node v,int d){this->SetLabel(v,IntToString(d));}
-inline void GraphAttributes::SetLabel(Edge e,int d){this->SetLabel(e,IntToString(d));}
-inline void GraphAttributes::SetLabel(Edge e,double d){this->SetLabel(e,DoubleToString(d));}
+inline void GraphAttributes::SetLabel(Node v,double d){this->SetLabel(v,to_string(d));}
+inline void GraphAttributes::SetLabel(Node v,int d){this->SetLabel(v,to_string(d));}
+inline void GraphAttributes::SetLabel(Edge e,int d){this->SetLabel(e,to_string(d));}
+inline void GraphAttributes::SetLabel(Edge e,double d){this->SetLabel(e,to_string(d));}
 inline void GraphAttributes::SetLabel(string s){this->SetGraphAttrib("label=\""+s+"\"");}
 
 inline void GraphAttributes::SetLabel(EdgeValueMap &x)
@@ -696,11 +668,11 @@ inline void GraphAttributes::SetLabel(NodeStringMap &x)
 { for (NodeIt v(this->g);v!=INVALID;++v) this->SetLabel(v,x[v]);}
 
 inline void GraphAttributes::SetLabelNonZero(NodeValueMap &x)
-{ for (NodeIt v(this->g);v!=INVALID;++v) if(!IsEqual(0,x[v])) this->SetLabel(v,x[v]);}
+{ for (NodeIt v(this->g);v!=INVALID;++v) if(!is_equal(0,x[v])) this->SetLabel(v,x[v]);}
 inline void GraphAttributes::SetLabelNonZero(NodeIntMap &x)
 { for (NodeIt v(this->g);v!=INVALID;++v) if(x[v]) this->SetLabel(v,x[v]);}
 inline void GraphAttributes::SetLabelNonZero(EdgeValueMap &x)
-{ for (EdgeIt e(this->g);e!=INVALID;++e) if(!IsEqual(0,x[e])) this->SetLabel(e,x[e]);}
+{ for (EdgeIt e(this->g);e!=INVALID;++e) if(!is_equal(0,x[e])) this->SetLabel(e,x[e]);}
 inline void GraphAttributes::SetLabelNonZero(EdgeIntMap &x)
 { for (EdgeIt e(this->g);e!=INVALID;++e) if(x[e]) this->SetLabel(e,x[e]);}
 
@@ -710,11 +682,11 @@ inline void GraphAttributes::SetDefaultEdgeFontName(string s){this->SetDefaultEd
 inline void GraphAttributes::SetFontName(Node v, string s){this->SetAttrib(v,"fontname=\""+s+"\"");}
 inline void GraphAttributes::SetFontName(Edge e, string s){this->SetAttrib(e,"fontname=\""+s+"\"");}
 
-inline void GraphAttributes::SetDefaultNodeFontSize(double s){this->SetDefaultNodeAttrib("fontsize=\""+DoubleToString(s)+"\"");}
-inline void GraphAttributes::SetDefaultEdgeFontSize(double s){this->SetDefaultEdgeAttrib("fontsize=\""+DoubleToString(s)+"\"");}
-inline void GraphAttributes::SetFontSize(Node v, double s){this->SetAttrib(v,"fontsize=\""+DoubleToString(s)+"\"");}
-inline void GraphAttributes::SetFontSize(Edge e, double s){this->SetAttrib(e,"fontsize=\""+DoubleToString(s)+"\"");}
-inline void GraphAttributes::SetFontSize(double s){this->SetGraphAttrib("fontsize=\""+DoubleToString(s)+"\"");}
+inline void GraphAttributes::SetDefaultNodeFontSize(double s){this->SetDefaultNodeAttrib("fontsize=\""+to_string(s)+"\"");}
+inline void GraphAttributes::SetDefaultEdgeFontSize(double s){this->SetDefaultEdgeAttrib("fontsize=\""+to_string(s)+"\"");}
+inline void GraphAttributes::SetFontSize(Node v, double s){this->SetAttrib(v,"fontsize=\""+to_string(s)+"\"");}
+inline void GraphAttributes::SetFontSize(Edge e, double s){this->SetAttrib(e,"fontsize=\""+to_string(s)+"\"");}
+inline void GraphAttributes::SetFontSize(double s){this->SetGraphAttrib("fontsize=\""+to_string(s)+"\"");}
 
 
 inline void GraphAttributes::SetColorByValue(int value,
@@ -725,7 +697,7 @@ inline void GraphAttributes::SetColorByValue(int value,
 inline void GraphAttributes::SetColorByValue(double value,
                                              NodeValueMap &nodeval, string cor){
 
-    for (NodeIt v(this->g);v!=INVALID;++v) if(IsEqual(value,nodeval[v])) this->SetColor(v,cor);}
+    for (NodeIt v(this->g);v!=INVALID;++v) if(is_equal(value,nodeval[v])) this->SetColor(v,cor);}
 
 inline void GraphAttributes::SetColorByInterval(double lb,double ub,
                                                 NodeValueMap &nodeval, string cor){
@@ -734,7 +706,7 @@ inline void GraphAttributes::SetColorByInterval(double lb,double ub,
 
 inline void GraphAttributes::SetColorByValue(double value,
                                              EdgeValueMap &edgeval, string cor){
-    for (EdgeIt e(this->g);e!=INVALID;++e) if(IsEqual(value,edgeval[e])) this->SetColor(e,cor);}
+    for (EdgeIt e(this->g);e!=INVALID;++e) if(is_equal(value,edgeval[e])) this->SetColor(e,cor);}
 
 inline void GraphAttributes::SetColorByInterval(double lb,double ub,
                                                 EdgeValueMap &edgeval, string cor){
@@ -750,7 +722,7 @@ inline void GraphAttributes::SetAttribByValue(int value,
 inline void GraphAttributes::SetAttribByValue(double value,
                                               NodeValueMap &nodeval, string at){
 
-    for (NodeIt v(this->g);v!=INVALID;++v) if(IsEqual(value,nodeval[v])) this->SetAttrib(v,at);}
+    for (NodeIt v(this->g);v!=INVALID;++v) if(is_equal(value,nodeval[v])) this->SetAttrib(v,at);}
 
 inline void GraphAttributes::SetAttribByInterval(double lb,double ub,
                                                  NodeValueMap &nodeval, string at){
@@ -763,7 +735,7 @@ inline void GraphAttributes::SetAttribByValue(int value,
 
 inline void GraphAttributes::SetAttribByValue(double value,
                                               EdgeValueMap &edgeval, string at){
-    for (EdgeIt e(this->g);e!=INVALID;++e) if(IsEqual(value,edgeval[e])) this->SetAttrib(e,at);}
+    for (EdgeIt e(this->g);e!=INVALID;++e) if(is_equal(value,edgeval[e])) this->SetAttrib(e,at);}
 
 inline void GraphAttributes::SetAttribByInterval(double lb,double ub,
                                                  EdgeValueMap &edgeval, string at){
@@ -863,8 +835,8 @@ inline void DigraphAttributes::SetColor(Arc e,string s){
 
 inline void DigraphAttributes::SetLabel(DNode v,string s){this->SetAttrib(v,"label=\""+s+"\"");}
 inline void DigraphAttributes::SetLabel(Arc e,string s){this->SetAttrib(e,"label=\""+s+"\"");}
-inline void DigraphAttributes::SetLabel(DNode v,double d){this->SetLabel(v,DoubleToString(d));}
-inline void DigraphAttributes::SetLabel(Arc e,double d){this->SetLabel(e,DoubleToString(d));}
+inline void DigraphAttributes::SetLabel(DNode v,double d){this->SetLabel(v,to_string(d));}
+inline void DigraphAttributes::SetLabel(Arc e,double d){this->SetLabel(e,to_string(d));}
 inline void DigraphAttributes::SetLabel(string s){this->SetDigraphAttrib("label=\""+s+"\"");}
 inline void DigraphAttributes::SetLabel(ArcValueMap &x)
 { for (ArcIt a(this->g);a!=INVALID;++a) this->SetLabel(a,x[a]);}
@@ -882,28 +854,28 @@ inline void DigraphAttributes::SetDefaultArcFontName(string s){this->SetDefaultA
 inline void DigraphAttributes::SetFontName(DNode v, string s){this->SetAttrib(v,"fontname=\""+s+"\"");}
 inline void DigraphAttributes::SetFontName(Arc e, string s){this->SetAttrib(e,"fontname=\""+s+"\"");}
 
-inline void DigraphAttributes::SetDefaultDNodeFontSize(double s){this->SetDefaultDNodeAttrib("fontsize=\""+DoubleToString(s)+"\"");}
-inline void DigraphAttributes::SetDefaultArcFontSize(double s ){this->SetDefaultArcAttrib("fontsize=\""+DoubleToString(s)+"\"");}
-inline void DigraphAttributes::SetFontSize(DNode v, double s){this->SetAttrib(v,"fontsize=\""+DoubleToString(s)+"\"");}
-inline void DigraphAttributes::SetFontSize(Arc e, double s){this->SetAttrib(e,"fontsize=\""+DoubleToString(s)+"\"");}
-inline void DigraphAttributes::SetFontSize(double s){this->SetDigraphAttrib("fontsize=\""+DoubleToString(s)+"\"");}
+inline void DigraphAttributes::SetDefaultDNodeFontSize(double s){this->SetDefaultDNodeAttrib("fontsize=\""+to_string(s)+"\"");}
+inline void DigraphAttributes::SetDefaultArcFontSize(double s ){this->SetDefaultArcAttrib("fontsize=\""+to_string(s)+"\"");}
+inline void DigraphAttributes::SetFontSize(DNode v, double s){this->SetAttrib(v,"fontsize=\""+to_string(s)+"\"");}
+inline void DigraphAttributes::SetFontSize(Arc e, double s){this->SetAttrib(e,"fontsize=\""+to_string(s)+"\"");}
+inline void DigraphAttributes::SetFontSize(double s){this->SetDigraphAttrib("fontsize=\""+to_string(s)+"\"");}
 
 // ----
 inline void DigraphAttributes::SetColorByValue(double value,DNodeValueMap &nodeval, string cor){
-    for (DNodeIt v(this->g);v!=INVALID;++v) if(IsEqual(value,nodeval[v])) this->SetColor(v,cor);}
+    for (DNodeIt v(this->g);v!=INVALID;++v) if(is_equal(value,nodeval[v])) this->SetColor(v,cor);}
 
 inline void DigraphAttributes::SetColorByInterval(double lb,double ub,DNodeValueMap &nodeval, string cor){
     for (DNodeIt v(this->g);v!=INVALID;++v)
         if((nodeval[v]>lb-MY_EPS) && (nodeval[v]<ub+MY_EPS)) this->SetColor(v,cor);}
 
 inline void DigraphAttributes::SetColorByValue(double value, ArcValueMap &arcval, string cor){
-    for (ArcIt e(this->g); e!=INVALID; ++e) if(IsEqual(value,arcval[e])) this->SetColor(e,cor);}
+    for (ArcIt e(this->g); e!=INVALID; ++e) if(is_equal(value,arcval[e])) this->SetColor(e,cor);}
 
 inline void DigraphAttributes::SetColorByInterval(double lb,double ub,ArcValueMap &arcval, string cor){
     for (ArcIt e(this->g); e!=INVALID; ++e) if((arcval[e]>lb-MY_EPS) && (arcval[e]<ub+MY_EPS)) this->SetColor(e,cor);}
 // ----
 inline void DigraphAttributes::SetAttribByValue(double value,DNodeValueMap &nodeval, string at){
-    for (DNodeIt v(this->g);v!=INVALID;++v) if(IsEqual(value,nodeval[v])) this->SetAttrib(v,at);}
+    for (DNodeIt v(this->g);v!=INVALID;++v) if(is_equal(value,nodeval[v])) this->SetAttrib(v,at);}
 
 inline void DigraphAttributes::SetAttribByValue(int value,DNodeIntMap &nodeval, string at){
     for (DNodeIt v(this->g);v!=INVALID;++v) if(value==nodeval[v]) this->SetAttrib(v,at);}
@@ -913,7 +885,7 @@ inline void DigraphAttributes::SetAttribByInterval(double lb,double ub,DNodeValu
         if((nodeval[v]>lb-MY_EPS) && (nodeval[v]<ub+MY_EPS)) this->SetAttrib(v,at);}
 
 inline void DigraphAttributes::SetAttribByValue(double value, ArcValueMap &arcval, string at){
-    for (ArcIt e(this->g); e!=INVALID; ++e) if(IsEqual(value,arcval[e])) this->SetAttrib(e,at);}
+    for (ArcIt e(this->g); e!=INVALID; ++e) if(is_equal(value,arcval[e])) this->SetAttrib(e,at);}
 
 inline void DigraphAttributes::SetAttribByValue(int value, ArcIntMap &arcval, string at){
     for (ArcIt e(this->g); e!=INVALID; ++e) if(value==arcval[e]) this->SetAttrib(e,at);}
