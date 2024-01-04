@@ -1,80 +1,69 @@
-//
-// Class to use color names and codes.
-//
-// In the future, use this structure to represent colors in mygraphlib.
-//
-// Send comments/corrections to Flavio K. Miyazawa
-//
 #include "mycolor.hpp"
 #include "myutils.hpp"
 
-ColorClass ColorG;// As a global variable
+ColorClass Colors;
 
-int color2int(colorelement c) { return (c.rgb_red * 255 * 255 + c.rgb_green * 255 + c.rgb_blue); }
-bool compare_color(const colorelement &lhs, const colorelement &rhs) { return color2int(lhs) < color2int(rhs); }
+int color2int(const color_element &c) { return c.rgb_red * 255 * 255 + c.rgb_green * 255 + c.rgb_blue; }
+bool compare_colors(const color_element &lhs, const color_element &rhs) { return color2int(lhs) < color2int(rhs); }
 
-string ColorClass::name(int colorcode) { return (this->vecolor[colorcode].colorname); }
-string ColorClass::rgb(int colorcode) { return (this->vecolor[colorcode].rgb); }
-int ColorClass::size() { return (this->vecolor.size()); }
-bool ColorClass::exists(string colorname) {
-    if (this->code.find(colorname) != this->code.end()) return (true);
-    else
-        return (false);
-}
-int ColorClass::insert(string colorname, string rgb) {
+string ColorClass::name(int color_code) { return this->colors[color_code].color_name; }
+string ColorClass::rgb(int color_code) { return this->colors[color_code].rgb; }
+int ColorClass::size() const { return this->colors.size(); }
+
+bool ColorClass::exists(const string &color_name) { return this->code.find(color_name) != this->code.end(); }
+
+int ColorClass::insert(const string &color_name, const string &rgb) {
     int pos;
-    if (this->exists(colorname)) {
-        pos = this->code[colorname];
-        this->vecolor[pos].rgb = rgb;
-        this->vecolor[pos].rgb_red = hex2int(rgb.substr(1, 2));
-        this->vecolor[pos].rgb_green = hex2int(rgb.substr(3, 2));
-        this->vecolor[pos].rgb_blue = hex2int(rgb.substr(5, 2));
+    color_element e;
+    e.color_name = color_name;
+    e.rgb = rgb;
+    e.rgb_red = hex2int(rgb.substr(1, 2));
+    e.rgb_green = hex2int(rgb.substr(3, 2));
+    e.rgb_blue = hex2int(rgb.substr(5, 2));
+
+    if (this->exists(color_name)) {
+        pos = this->code[color_name];
+        e.next_visually_distinct_color = this->colors[pos].next_visually_distinct_color;
+        this->colors[pos] = e;
     } else {
-        colorelement e;
-        e.colorname = colorname;
-        e.rgb = rgb;
-        e.rgb_red = hex2int(rgb.substr(1, 2));
-        e.rgb_green = hex2int(rgb.substr(3, 2));
-        e.rgb_blue = hex2int(rgb.substr(5, 2));
-        e.nextvisualdistinctcolor = 0;
-        this->vecolor.push_back(e);
-        pos = this->vecolor.size() - 1;// position of the last element
-        this->code[colorname] = pos;
+        e.next_visually_distinct_color = 0;
+        this->colors.push_back(e);
+        pos = this->colors.size() - 1;// position of the last element
+        this->code[color_name] = pos;
     }
-    return (pos);
+    return pos;
 }
 
-// you must not insert a same color more than once
-int InsertVisualDistinctColor(string colorname) {
-    int colorcode = ColorCode(colorname);
-    if (ColorG.firstvisualdistinctcolor == -1) {
-        ColorG.firstvisualdistinctcolor = colorcode;
-        ColorG.lastvisualdistinctcolor = colorcode;
-        ColorG.vecolor[colorcode].nextvisualdistinctcolor = colorcode;
+int InsertVisualDistinctColor(const string &color_name) {// you must not insert a same color more than once
+    int color_code = ColorCode(color_name);
+    if (Colors.first_visually_distinct_color == -1) {
+        Colors.first_visually_distinct_color = color_code;
+        Colors.last_visually_distinct_color = color_code;
+        Colors.colors[color_code].next_visually_distinct_color = color_code;
     } else {
-        ColorG.vecolor[colorcode].nextvisualdistinctcolor = ColorG.firstvisualdistinctcolor;
-        ColorG.vecolor[ColorG.lastvisualdistinctcolor].nextvisualdistinctcolor = colorcode;
-        ColorG.lastvisualdistinctcolor = colorcode;
+        Colors.colors[color_code].next_visually_distinct_color = Colors.first_visually_distinct_color;
+        Colors.colors[Colors.last_visually_distinct_color].next_visually_distinct_color = color_code;
+        Colors.last_visually_distinct_color = color_code;
     }
-    ColorG.ith_visualdistinctcolor.push_back(colorcode);
-    ColorG.quantvisualdistinctcolor++;
-    return (colorcode);
+    Colors.ith_visually_distinct_color.push_back(color_code);
+    Colors.n_visually_distinct_colors++;
+    return color_code;
 }
-int NextVisualDistinctColor(int colorcode) {
-    if (ColorG.firstvisualdistinctcolor == -1) return (-1);
-    return (ColorG.vecolor[colorcode].nextvisualdistinctcolor);
+
+int NextVisualDistinctColor(int color_code) {
+    if (Colors.first_visually_distinct_color == -1) return -1;
+    return Colors.colors[color_code].next_visually_distinct_color;
 }
-int FirstVisualDistinctColor() { return (ColorG.firstvisualdistinctcolor); }
-int SizeVisualDistinctColor() { return (ColorG.quantvisualdistinctcolor); }
 
-int ith_VisualDistinctColor(int i) { return (ColorG.ith_visualdistinctcolor[i]); }
+int FirstVisualDistinctColor() { return (Colors.first_visually_distinct_color); }
 
-void ColorClass::init(void) {
-    this->firstvisualdistinctcolor = -1;
-    this->lastvisualdistinctcolor = -1;
-    this->quantvisualdistinctcolor = 0;
-    this->code["NoColor"] = -1;     // This is a special code to represent no given color
-    this->insert("Aqua", "#00FFFF");// In some cases, the color 0 (first color) is default
+int SizeVisualDistinctColor() { return (Colors.n_visually_distinct_colors); }
+
+int ith_VisualDistinctColor(int i) { return (Colors.ith_visually_distinct_color[i]); }
+
+void ColorClass::init() {
+    this->code["NoColor"] = -1;// This is a special code to represent no given color
+    this->insert("Aqua", "#00FFFF");
     this->insert("Cyan", "#00FFFF");
     this->insert("Gray", "#808080");
     this->insert("Grey", "#808080");
@@ -223,7 +212,8 @@ void ColorClass::init(void) {
     this->insert("LightYellow", "#FFFFE0");
     this->insert("Ivory", "#FFFFF0");
     this->insert("White", "#FFFFFF");
-    //----- Insert some Visual Distinct Colors
+
+    // Insert some visually distinct colors:
     InsertVisualDistinctColor("Red");
     InsertVisualDistinctColor("Blue");
     InsertVisualDistinctColor("Magenta");
@@ -244,49 +234,13 @@ void ColorClass::init(void) {
     InsertVisualDistinctColor("Lavender");
 }
 
-ColorClass::ColorClass(void) { this->init(); }
-
-
-// ColorClass::ColorClass(string filename)
-// {
-//   ifstream file;
-//   string line,colorname,rgb;
-//   colorelement e;
-//   this->MaxColors = 500;
-//   this->vecolor.reserve(this->MaxColors);
-//   this->init();
-//   file.open(filename);
-//   if (!file){cout<<"Error: Could not open file \""<<filename<<"\".\n";exit(0);}
-//   while(std::getline(file, line)) {
-//     if (this->vecolor.size() >= this->MaxColors) // In the future, change to resize
-//       {cout << "Error: Cannot insert more colors. Redefine MaxColors.\n"; exit(0);}
-//     if (is_comment(line,"#")) continue;
-//     replace(line.begin(),line.end(), '\t',' ');
-//     istringstream token(line); // Declare an input string stream.
-//     getline(token, colorname,' ');
-//     getline(token, rgb,' ');
-//     this->insert(colorname,rgb);
-//   }
-//   this->vecolor.resize(vecolor.size());
-//   sort (this->vecolor.begin(), this->vecolor.end(), compare_color);
-//   for (int i=0;i<this->vecolor.size();i++)this->code[this->vecolor[i].colorname]=i;
-// }
-
-void ColorClass::list() {
-    std::map<string, int>::iterator it = this->code.begin();
-    cout << "List of colors" << endl;
-    while (it != code.end()) {
-        cout << setw(30) << it->first << setw(5) << it->second << setw(10) << ColorRGB(it->second) << endl;
-        it++;
-    }
+ColorClass::ColorClass()
+    : first_visually_distinct_color(-1), last_visually_distinct_color(-1), n_visually_distinct_colors(0) {
+    this->init();
 }
 
 void ColorClass::print() {
-    std::cout << "List of colors" << endl
-              << setw(5) << "Code"
-              << " " << setw(30) << "Color_Name" << setw(10) << "RGB" << endl;
-    for (int i = 0; i < this->vecolor.size(); i++) {
-        std::cout << setw(5) << i << " " << setw(30) << this->vecolor[i].colorname << setw(10) << this->vecolor[i].rgb
-                  << endl;
-    }
+    cout << "List of colors:" << endl << setw(5) << "Code" << setw(30) << "Color Name" << setw(10) << "RGB" << endl;
+    for (int i = 0; i < this->colors.size(); i++)
+        cout << setw(5) << i << setw(30) << this->colors[i].color_name << setw(10) << this->colors[i].rgb << endl;
 }

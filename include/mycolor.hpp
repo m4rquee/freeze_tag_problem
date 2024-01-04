@@ -2,55 +2,48 @@
 #define MY_COLOR_DEFINE
 
 #include "myutils.hpp"
-#include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <map>
-#include <sstream>
-#include <string>
-#include <vector>
 
 typedef struct {
-    string colorname, rgb;
+    string color_name, rgb;
     int rgb_red, rgb_green, rgb_blue;
-    int nextvisualdistinctcolor;
-} colorelement;
+    int next_visually_distinct_color;
+} color_element;
 
 class ColorClass {
 public:
-    ColorClass();// Use colors defined in the routine init
-    // ColorClass(string filename); //Add color from a file (also includes the colors in init)
-    string name(int colorcode);
-    int insert(string colorname, string rgb);
-    string rgb(int colorcode);
-    bool exists(string colorname);
-    int size();
+    ColorClass();// use colors defined in the routine init
+    string name(int color_code);
+    int insert(const string &color_name, const string &rgb);
+    string rgb(int color_code);
+    bool exists(const string &color_name);
+    int size() const;
     void init();
     void print();
-    void list();
-    // dictionary that returns the code of a given color name
-    std::map<string, int> code;
-    vector<colorelement> vecolor;
-    vector<int> ith_visualdistinctcolor;
-    int firstvisualdistinctcolor, lastvisualdistinctcolor, quantvisualdistinctcolor;
+
+    std::map<string, int> code;// dictionary that returns the code of a given color name
+    vector<color_element> colors;
+    vector<int> ith_visually_distinct_color;
+    int first_visually_distinct_color{}, last_visually_distinct_color{}, n_visually_distinct_colors{};
 };
 
-extern ColorClass ColorG;
+extern ColorClass Colors;// like a static instance of ColorClass
 
-inline int ColorCode(string colorname) { return ColorG.code[colorname]; }
-inline int ColorSize() { return ColorG.vecolor.size(); }
-inline string ColorRGB(string colorname) { return ColorG.rgb(ColorG.code[colorname]); }
-inline string ColorRGB(int colorcode) { return ColorG.rgb(colorcode); }
-inline bool ColorExists(string colorname) { return ColorG.exists(colorname); }
-inline string ColorName(int code) { return ColorG.name(code); }
-inline int ColorInsert(string colorname, string rgb) { return ColorG.insert(colorname, rgb); }
-inline void ColorPrint() { ColorG.print(); }
-inline void ColorList() { ColorG.list(); }
-int InsertVisualDistinctColor(string colorname);
-int NextVisualDistinctColor(int colorcode);
+inline int ColorCode(string color_name) { return Colors.code[color_name]; }
+inline int ColorSize() { return Colors.colors.size(); }
+inline string ColorRGB(string color_name) { return Colors.rgb(Colors.code[color_name]); }
+inline string ColorRGB(int color_code) { return Colors.rgb(color_code); }
+inline bool ColorExists(string color_name) { return Colors.exists(color_name); }
+inline string color_name(int code) { return Colors.name(code); }
+inline int ColorInsert(string color_name, string rgb) { return Colors.insert(color_name, rgb); }
+inline void ColorPrint() { Colors.print(); }
+
+int InsertVisualDistinctColor(const string &color_name);
+int NextVisualDistinctColor(int color_code);
 int FirstVisualDistinctColor();
 int SizeVisualDistinctColor();
 int ith_VisualDistinctColor(int i);
-inline string ith_VisualDistinctColorName(int i) { return ColorG.name(ith_VisualDistinctColor(i)); }
+inline string ith_VisualDistinctColorName(int i) { return Colors.name(ith_VisualDistinctColor(i)); }
 
 #endif// MY_COLOR_DEFINE
