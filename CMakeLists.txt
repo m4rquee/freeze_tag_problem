@@ -6,7 +6,7 @@ project(Freeze_Tag_Problem_ILP
 
 set(CMAKE_CXX_STANDARD 14)
 
-# Set a default build type if none was specified
+# Set a build type if none was specified
 set(default_build_type "Release")
 
 # Headers directories

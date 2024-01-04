@@ -57,9 +57,10 @@ inline int hex2int(string s) {
 
 inline bool file_exists(const string &filename) {
     ifstream f(filename.c_str());
-    return f.is_open();
+    bool ret = f.is_open();
+    if (ret) f.close();
+    return ret;
 }
-
 
 inline char char_tolower(char c) { return tolower(c); }
 
@@ -74,7 +75,6 @@ static inline string &rtrim(string &str) {// right trim
     str.erase(find_if(str.rbegin(), str.rend(), not1(ptr_fun<int, int>(isspace))).base(), str.end());
     return str;
 }
-
 
 static inline string &trim(string &str) {// left and right trim
     return ltrim(rtrim(str));
@@ -101,6 +101,7 @@ inline bool bin_is_zero(double x) { return x < MY_EPS; }
 
 // ========================================================================
 //     * Reading tables from text files
+
 class StringTable {
 public:
     StringTable(int nrows, ifstream &file);
@@ -108,7 +109,7 @@ public:
     int nrows, ncols;
     vector<string> header;
     vector<int> column_size;
-    vector<vector<string>> line;
+    vector<vector<string>> lines;
     int column_index(const string &column_name);   // return the column index, or -1 if it does not exist
     string first(const string &column_name);       // return the first element of the column
     int first_int(const string &column_name);      // return the first element of the column as int
@@ -133,21 +134,21 @@ inline int StringTable::column_index(const string &column_name) {// return the c
 inline bool StringTable::entry(int row, int col, string &entry) {
     if (row < 0 || row >= this->nrows) return false;
     if (col < 0 || col >= this->ncols) return false;
-    entry = this->line[row][col];
+    entry = this->lines[row][col];
     return true;
 }
 
 inline bool StringTable::entry(int row, int col, double &entry) {
     if (row < 0 || row >= this->nrows) return false;
     if (col < 0 || col >= this->ncols) return false;
-    entry = stod(this->line[row][col]);
+    entry = stod(this->lines[row][col]);
     return true;
 }
 
 inline bool StringTable::entry(int row, int col, int &entry) {
     if (row < 0 || row >= this->nrows) return false;
     if (col < 0 || col >= this->ncols) return false;
-    entry = stoi(this->line[row][col]);
+    entry = stoi(this->lines[row][col]);
     return true;
 }
 
