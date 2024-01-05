@@ -1,21 +1,6 @@
 #include "mygraphlib.hpp"
-#include "mycolor.hpp"
-#include "myutils.hpp"
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <lemon/math.h>
-#include <math.h>
 
-#if __cplusplus >= 201103L
-#include <unordered_map>
-#else
-#include <tr1/unordered_map>
-#endif
-using namespace std;
-
-mygraphlibdefaultparameters mygraphlibparameters;
+Parameters MY_GRAPHLIB_PARAMETERS = MY_GRAPHLIB_DEFAULT_PARAMETERS;
 
 // The code below is divided in sections:
 //     General Functions
@@ -160,7 +145,7 @@ bool GenerateVertexPositions(Graph &g, EdgeValueMap &custo, NodePosMap &posx, No
     }
     out << "}\n";
     out.close();
-    sprintf(cmd, "%s -Goverlap=false %s -o %s", mygraphlibparameters.graphvizdrawingprogram.c_str(), tempnamedot,
+    sprintf(cmd, "%s -Goverlap=false %s -o %s", MY_GRAPHLIB_PARAMETERS.graphviz_drawing_program.c_str(), tempnamedot,
             tempnameposdot);
     fflush(stdout);
     system(cmd);// gera outro arquivo do graphviz, mas com posições
@@ -269,7 +254,7 @@ bool GenerateVertexPositions(Digraph &g, ArcValueMap &custo, DNodePosMap &posx, 
     }
     out << "}\n";
     out.close();
-    sprintf(cmd, "%s -Goverlap=false %s -o %s", mygraphlibparameters.graphvizdrawingprogram.c_str(), tempnamedot,
+    sprintf(cmd, "%s -Goverlap=false %s -o %s", MY_GRAPHLIB_PARAMETERS.graphviz_drawing_program.c_str(), tempnamedot,
             tempnameposdot);
     fflush(stdout);
     system(cmd);// gera outro arquivo do graphviz, mas com posições
@@ -517,10 +502,10 @@ bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMa
         exit(1);
     }
     GraphTable GT(filename, g);// Read the graph (only nodes and edges)
-    bool ok = GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename, vname);
+    bool ok = GT.GetColumn(MY_GRAPHLIB_PARAMETERS.input_graph_table_nodename, vname);
     if (weight != nullptr) ok = ok && GT.GetColumn("weight", *weight);
-    ok = ok && GetNodeCoordinates(GT, mygraphlibparameters.inputgraphtable_posx, posx,
-                                  mygraphlibparameters.inputgraphtable_posy, posy);
+    ok = ok && GetNodeCoordinates(GT, MY_GRAPHLIB_PARAMETERS.input_graph_table_posx, posx,
+                                  MY_GRAPHLIB_PARAMETERS.input_graph_table_posy, posy);
     return ok;
 }
 
@@ -532,10 +517,10 @@ bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMa
         exit(1);
     }
     GraphTable GT(filename, g);// Read the graph (only nodes and edges)
-    bool ok = GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename, vname);
+    bool ok = GT.GetColumn(MY_GRAPHLIB_PARAMETERS.input_graph_table_nodename, vname);
     if (weight != nullptr) ok = ok && GT.GetColumn("weight", *weight);
-    ok = ok && GetNodeCoordinates(GT, mygraphlibparameters.inputgraphtable_posx, posx,
-                                  mygraphlibparameters.inputgraphtable_posy, posy);
+    ok = ok && GetNodeCoordinates(GT, MY_GRAPHLIB_PARAMETERS.input_graph_table_posx, posx,
+                                  MY_GRAPHLIB_PARAMETERS.input_graph_table_posy, posy);
     return ok;
 }
 
@@ -735,15 +720,15 @@ GraphAttributes::GraphAttributes(GraphTable &GT)
     : g(GT.g), node_name(GT.g), px(GT.g), py(GT.g), node_attrib(GT.g), edge_attrib(GT.g) {
     factor = 1.0;
     graph_attrib = "";
-    GT.GetColumn(mygraphlibparameters.inputgraphtable_nodename, node_name);
-    GetNodeCoordinates(GT, mygraphlibparameters.inputgraphtable_posx, px, mygraphlibparameters.inputgraphtable_posy,
-                       py);
+    GT.GetColumn(MY_GRAPHLIB_PARAMETERS.input_graph_table_nodename, node_name);
+    GetNodeCoordinates(GT, MY_GRAPHLIB_PARAMETERS.input_graph_table_posx, px,
+                       MY_GRAPHLIB_PARAMETERS.input_graph_table_posy, py);
     for (NodeIt v(this->g); v != INVALID; ++v) node_attrib[v] = "";
     for (EdgeIt e(this->g); e != INVALID; ++e) edge_attrib[e] = "";
 
     GT.GetColumn("nodename", this->node_name);
-    GetNodeCoordinates(GT, mygraphlibparameters.inputgraphtable_posx, this->px,
-                       mygraphlibparameters.inputgraphtable_posy, this->py);
+    GetNodeCoordinates(GT, MY_GRAPHLIB_PARAMETERS.input_graph_table_posx, this->px,
+                       MY_GRAPHLIB_PARAMETERS.input_graph_table_posy, this->py);
 }
 
 
@@ -794,7 +779,7 @@ bool GraphAttributes::View()// text displayed below the figure
 
     fprintf(fp, "}\n");
     fclose(fp);
-    sprintf(cmd, "%s -Tpdf %s -o %s", mygraphlibparameters.graphvizdrawingprogram.c_str(), tempname, outputname);
+    sprintf(cmd, "%s -Tpdf %s -o %s", MY_GRAPHLIB_PARAMETERS.graphviz_drawing_program.c_str(), tempname, outputname);
     system(cmd);
     //cout << "Grafo em "<< tempname << "\n";
     view_pdf_file(outputname);
@@ -861,7 +846,7 @@ bool DigraphAttributes::View()// text displayed below the figure
 
     fprintf(fp, "}\n");
     fclose(fp);
-    sprintf(cmd, "%s -Tpdf %s -o %s", mygraphlibparameters.graphvizdrawingprogram.c_str(), tempname, outputname);
+    sprintf(cmd, "%s -Tpdf %s -o %s", MY_GRAPHLIB_PARAMETERS.graphviz_drawing_program.c_str(), tempname, outputname);
     system(cmd);
     //cout << "Grafo em "<< tempname << "\n";
     view_pdf_file(outputname);

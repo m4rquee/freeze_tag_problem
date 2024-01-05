@@ -20,9 +20,7 @@ extern string PDF_READER;// Program to open a pdf file.
                          // but the program must run in a terminal with the syntax:
                          // <pdfreader>  <pdffile>
 
-//====================================================================================
-//     * Dealing with PDF files and strings
-
+// Dealing with PDF files and strings: ---------------------------------------------------------------------------------
 int view_pdf_file(const string &filename);// opens a pdf file using the program defined at PDF_READER
 
 inline bool is_space(char c) { return (c == ' ') || (c == '\t'); }
@@ -84,9 +82,7 @@ static inline string &trim(string &str) {// left and right trim
     return ltrim(rtrim(str));
 }
 
-//====================================================================================
-//     * Functions to test values
-
+// Functions to test values: -------------------------------------------------------------------------------------------
 inline bool is_frac(double x) {// if x is fractional (within a certain small error)
     double f;
     f = ceil(x - MY_EPS) - x;
@@ -103,9 +99,7 @@ inline bool is_equal(double x, double y) {// if x and y are equal (within a cert
 inline bool bin_is_one(double x) { return x > (double) (1.0 - MY_EPS); }
 inline bool bin_is_zero(double x) { return x < MY_EPS; }
 
-// ========================================================================
-//     * Reading tables from text files
-
+// Reading tables from text files: -------------------------------------------------------------------------------------
 class StringTable {
 public:
     StringTable(int nrows, ifstream &file);

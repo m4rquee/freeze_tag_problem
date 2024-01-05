@@ -6,8 +6,7 @@ string PDF_READER = "xdg-open";// the Linux will choose the default one
 
 #define MAX_CMD_SIZE 1000// maximum number of characters of a command used by the system routine
 
-//====================================================================================
-//     * Dealing with PDF files and strings
+// Dealing with PDF files and strings: ---------------------------------------------------------------------------------
 
 int view_pdf_file(const string &filename) {
     char cmd[MAX_CMD_SIZE];
@@ -16,8 +15,7 @@ int view_pdf_file(const string &filename) {
     return 0;
 }
 
-// ========================================================================
-//     * Reading tables from text files
+// Reading tables from text files: -------------------------------------------------------------------------------------
 
 // Read a table containing a header (first line that is not a comment) and then,
 // read n rows, according to the header:

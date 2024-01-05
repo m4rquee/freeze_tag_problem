@@ -1,13 +1,16 @@
-// =============================================================
-#ifndef MYGRAPHLIB_DEFINE
-#define MYGRAPHLIB_DEFINE
+#ifndef MY_GRAPHLIB_DEFINE
+#define MY_GRAPHLIB_DEFINE
 
 #include "mycolor.hpp"
 #include "myutils.hpp"
-#include <float.h>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
+
+#include <cfloat>
+#include <climits>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <unordered_map>
+
 #include <lemon/concepts/digraph.h>
 #include <lemon/concepts/graph.h>
 #include <lemon/concepts/maps.h>
@@ -15,67 +18,36 @@
 #include <lemon/list_graph.h>
 #include <lemon/math.h>
 #include <lemon/preflow.h>
-#include <string>
 
-using namespace std;
 using namespace lemon;
 
-class mygraphlibdefaultparameters {
-public:
-    mygraphlibdefaultparameters();
-    // Parameters used for graph visualization
-    string graphvizdrawingprogram;// neato (default), twopi, circo, fdp, dot
-    void setgraphviz(string prog);
-    // Be careful to change this parameters, since the instances in the
-    // folder ./instances/ are using these default terms for the header
-    // Header table
-    string inputgraphtable_nnodes;// "nnodes"
-    string inputgraphtable_nedges;// "nedges", for the Graph type
-    string inputgraphtable_narcs; // "narcs", for the Digraph type
-    string inputgraphtable_type;  // "type"
-    // Node table
-    string inputgraphtable_nodename;// "nodename"
-    string inputgraphtable_posx;    // "posx"
-    string inputgraphtable_posy;    // "posy"
-    // Edge Table
-    string inputgraphtable_endpoint1;// "endpoint1", for the Graph type
-    string inputgraphtable_endpoint2;// "endpoint2", for the Graph type
-    // Arc Table
-    string inputgraphtable_tail;// "tail", for the Digraph type
-    string inputgraphtable_head;// "head", for the Digraph type
-};
+// Be careful to change these parameters, since the instances in the
+// folder ./instances/ are using these default terms in their headers:
+typedef struct Parameters {
+    string graphviz_drawing_program = "neato";// neato, twopi, circo, fdp or dot
 
-inline mygraphlibdefaultparameters::mygraphlibdefaultparameters() {
-    graphvizdrawingprogram = "neato";
-    // Be careful to change this parameters, since the instances in the
-    // folder ./instances/ are using these default terms to read graph files
-    // Header table
-    inputgraphtable_nnodes = "nnodes";
-    inputgraphtable_nedges = "nedges";// for the Graph type
-    inputgraphtable_narcs = "narcs";  // for the Digraph type
-    inputgraphtable_type = "type";
-    // Node table
-    inputgraphtable_nodename = "nodename";
-    inputgraphtable_posx = "posx";
-    inputgraphtable_posy = "posy";
-    // Edge Table
-    inputgraphtable_endpoint1 = "endpoint1";// for the Graph type
-    inputgraphtable_endpoint2 = "endpoint2";// for the Graph type
-    // Arc Table
-    inputgraphtable_tail = "tail";// for the Digraph type
-    inputgraphtable_head = "head";// for the Digraph type
-}
-extern mygraphlibdefaultparameters mygraphlibparameters;
+    // Header table:
+    string input_graph_table_nnodes = "nnodes";
+    string input_graph_table_nedges = "nedges";// for the Graph type
+    string input_graph_table_narcs = "narcs";  // for the Digraph type
+    string input_graph_table_type = "type";
 
-// Set Graphviz drawing program
-inline void SetGraphviz(string prog) { mygraphlibparameters.graphvizdrawingprogram = prog; }
+    // Node table:
+    string input_graph_table_nodename = "nodename";
+    string input_graph_table_posx = "posx";
+    string input_graph_table_posy = "posy";
 
+    // Edge Table:
+    string input_graph_table_endpoint1 = "endpoint1";// "endpoint1", for the Graph type
+    string input_graph_table_endpoint2 = "endpoint2";// "endpoint2", for the Graph type
 
-#define MAXLABELNAME 200
-#define MAXLINE 1000
+    // Arc Table:
+    string input_graph_table_tail = "tail";// "tail", for the Digraph type
+    string input_graph_table_head = "head";// "head", for the Digraph type
+} Parameters;
 
-#define VIEW_DOT 0
-//#define VIEW_NEATO 1
+const Parameters MY_GRAPHLIB_DEFAULT_PARAMETERS;
+extern Parameters MY_GRAPHLIB_PARAMETERS;
 
 typedef ListGraph Graph;
 typedef Graph::Node Node;
@@ -137,17 +109,8 @@ typedef vector<DNode> LineToDNodeMap;
 typedef vector<Edge> LineToEdgeMap;
 typedef vector<Arc> LineToArcMap;
 
-#if __cplusplus >= 201103L
-#include <climits>
-#include <unordered_map>
-typedef std::unordered_map<string, Node> StringToNodeMap;
-typedef std::unordered_map<string, DNode> StringToDNodeMap;
-#else
-#include <tr1/unordered_map>
-typedef std::tr1::unordered_map<string, Node> StringToNodeMap;
-typedef std::tr1::unordered_map<string, DNode> StringToDNodeMap;
-#endif
-
+typedef unordered_map<string, Node> StringToNodeMap;
+typedef unordered_map<string, DNode> StringToDNodeMap;
 
 inline double Product(Graph &g, NodeValueMap &a, NodeValueMap &b) {
     double s = 0.0;
@@ -281,7 +244,7 @@ bool GenerateRandomGraph(Graph &g,
 
 
 // Given a color code, return its name
-//std::string ColorName(int cor);
+//string ColorName(int cor);
 
 double MinCut(Graph &g, EdgeValueMap &weight, Node &s, Node &t, CutMap &cut);
 
@@ -1052,4 +1015,4 @@ inline int Min(Graph &g, NodeIntMap &val) {
     return (M);
 }
 
-#endif
+#endif// MY_GRAPHLIB_DEFINE
