@@ -5,23 +5,6 @@ Parameters MY_GRAPHLIB_PARAMETERS = MY_GRAPHLIB_DEFAULT_PARAMETERS;
 // The code below is divided in sections:
 //     General Functions
 
-void PulaBrancoComentario(ifstream &ifile) {
-    char c;
-    string line;
-    while (!ifile.eof()) {
-        c = ifile.get();
-        while ((c == ' ') && (!ifile.eof())) c = ifile.get();
-        if (!ifile.eof()) {
-            if (c == '#') getline(ifile, line);
-            else {
-                ifile.unget();
-                break;
-            }
-        }
-    }
-}
-
-
 bool WriteGraphGraphviz(Graph &g,
                         NodeStringMap &vname,// vertex names
                         EdgeStringMap &ename,// edge names
@@ -87,7 +70,7 @@ int gr_busca_padrao(char *texto, char *busca) {
 
 Node GetNodeByName(Graph &g,
                    NodeStringMap &vname,// name of the nodes
-                   string vertexname) {
+                   const string &vertexname) {
     for (NodeIt v(g); v != INVALID; ++v) {
         if (vname[v] == vertexname) return (v);
     }
@@ -97,7 +80,7 @@ Node GetNodeByName(Graph &g,
 
 DNode GetDNodeByName(Digraph &g,
                      DNodeStringMap &vname,// name of the nodes
-                     string vertexname) {
+                     const string &vertexname) {
     for (DNodeIt v(g); v != INVALID; ++v) {
         if (vname[v] == vertexname) return (v);
     }
@@ -106,7 +89,7 @@ DNode GetDNodeByName(Digraph &g,
 }
 
 // This routine uses a graphiz program to generate positions.
-bool GenerateVertexPositions(Graph &g, EdgeValueMap &custo, NodePosMap &posx, NodePosMap &posy) {
+bool GenerateVertexPositions(Graph &g, EdgeValueMap &cost, NodePosMap &posx, NodePosMap &posy) {
     size_t t = 0;
     double x, y;
     char tempname[1000], tempnamedot[1000], tempnameposdot[1000], cmd[1000];
@@ -114,7 +97,7 @@ bool GenerateVertexPositions(Graph &g, EdgeValueMap &custo, NodePosMap &posx, No
     ifstream in;
     string linha, substring;
 
-    (void) custo;// to avoid "non-used" parameter message.
+    (void) cost;// to avoid "non-used" parameter message.
 
     // obtain a temporary file name
     strcpy(tempname, ".readgraphtempname");
@@ -215,7 +198,7 @@ bool GenerateVertexPositions(Graph &g, EdgeValueMap &custo, NodePosMap &posx, No
 
 
 // This routine uses a graphviz program to generate positions.
-bool GenerateVertexPositions(Digraph &g, ArcValueMap &custo, DNodePosMap &posx, DNodePosMap &posy) {
+bool GenerateVertexPositions(Digraph &g, ArcValueMap &cost, DNodePosMap &posx, DNodePosMap &posy) {
     size_t t = 0;
     double x, y;
     char tempname[1000], tempnamedot[1000], tempnameposdot[1000], cmd[1000];
@@ -223,7 +206,7 @@ bool GenerateVertexPositions(Digraph &g, ArcValueMap &custo, DNodePosMap &posx, 
     ifstream in;
     string linha, substring;
 
-    (void) custo;// to avoid "non-used" parameter message.
+    (void) cost;// to avoid "non-used" parameter message.
 
     // obtain a temporary file name
     strcpy(tempname, ".readgraphtempname");
@@ -553,7 +536,7 @@ bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNod
     return (ok);
 }
 
-//Generate a random complete euclidean Graph
+//Generate a random complete Euclidean Graph
 bool GenerateRandomEuclideanDigraph(Digraph &g,
                                     DNodeStringMap &vname,// node name
                                     DNodePosMap &px,      // x-position of the node
@@ -565,10 +548,6 @@ bool GenerateRandomEuclideanDigraph(Digraph &g,
 {
     DNode *V;
     V = new DNode[n];
-    if (V == NULL) {
-        cout << "Memory allocation error, number of nodes " << n << " too large\n";
-        exit(0);
-    }
 
     for (int i = 0; i < n; i++) {// insert nodes (random points in [0,100] x [0,100] )
         V[i] = g.addNode();      // new node
@@ -600,10 +579,6 @@ bool GenerateRandomEuclideanGraph(Graph &g,
     int i, j;// n=number of nodes
     Node *V;
     V = new Node[n];
-    if (V == NULL) {
-        cout << "Memory allocation error, number of nodes " << n << " too large\n";
-        exit(0);
-    }
 
     for (i = 0; i < n; i++) {// insert nodes (random points in [0,100] x [0,100] )
         V[i] = g.addNode();  // generate a new node
@@ -621,7 +596,7 @@ bool GenerateRandomEuclideanGraph(Graph &g,
 }
 
 
-//Generate a random complete euclidean Graph
+//Generate a random complete Euclidean Graph
 bool GenerateRandomGraph(Graph &g,
                          int n,               // number of nodes
                          NodeStringMap &vname,// node names
@@ -637,10 +612,6 @@ bool GenerateRandomGraph(Graph &g,
     int i, j;// n=number of nodes
     Node *V;
     V = new Node[n];
-    if (V == NULL) {
-        cout << "Memory allocation error, number of nodes " << n << " too large\n";
-        exit(0);
-    }
 
     for (i = 0; i < n; i++) {// insert nodes (random points in [0,100] x [0,100] )
         V[i] = g.addNode();  // generate a new node
@@ -662,10 +633,10 @@ bool GenerateRandomGraph(Graph &g,
 }
 
 
-// obtain a mincut separating vertices 's' and 't' for undirected graphs
+// Obtain a mincut separating vertices 's' and 't' for undirected graphs
 // The input is given by the graph 'g'. Each edge of g has a "weight".
 // The returned cut is given by the vector of nodes 'cut' (boolean
-// vector, nodes in one side have value false and nodes in the other side
+// vector, nodes on one side have value false, and nodes on the other side
 // have value true).
 double MinCut(Graph &g, EdgeValueMap &weight, Node &s, Node &t, CutMap &cut) {
     PFType pf(g, weight, s, t);
@@ -675,7 +646,7 @@ double MinCut(Graph &g, EdgeValueMap &weight, Node &s, Node &t, CutMap &cut) {
     return (pf.flowValue());
 }
 
-// Obtain a mininum cut for directed graphs from s to t.
+// Obtain a minimum cut for directed graphs from s to t.
 // The returned cut is given by the vector of nodes 'cut' (boolean
 // vector: nodes v in the same side of s have cut[v]=true, otherwise cut[v]=false.
 double DiMinCut(Digraph &g, ArcValueMap &weight, DNode &s, DNode &t, DCutMap &vcut) {
@@ -732,9 +703,9 @@ GraphAttributes::GraphAttributes(GraphTable &GT)
 }
 
 
-// This routine visualize a graph using a pdf viewer. It uses a graphviz (from
-// graphviz.org) to generate a pdf file and a program to view the pdf file. The
-// pdf viewer name is given in the viewername parameter.
+// This routine visualizes a graph using a pdf viewer.
+// It uses a graphviz (from graphviz.org) to generate a pdf file and a program to view the pdf file.
+// The pdf viewer name is given in the viewername parameter.
 bool GraphAttributes::View()// text displayed below the figure
 {
     char tempname[1000], cmd[1000], outputname[1000];
@@ -746,7 +717,7 @@ bool GraphAttributes::View()// text displayed below the figure
     strcpy(tempname, ".viewgraphtempname");
     sprintf(outputname, "%s.pdf", tempname);
     fp = fopen(tempname, "w+");
-    if (fp == NULL) {
+    if (fp == nullptr) {
         cout << "Error to open temporary file to visualize graph.\n";
         return (false);
     }
@@ -797,7 +768,7 @@ DigraphAttributes::DigraphAttributes(Digraph &digraph, DNodeStringMap &vname, DN
 }
 
 
-// This routine visualize a graph using a pdf viewer. It uses a graphviz (from
+// This routine visualizes a graph using a pdf viewer. It uses a graphviz (from
 // graphviz.org) to generate a pdf file and a program to view the pdf file. The
 // pdf viewer name is given in the viewername parameter.
 bool DigraphAttributes::View()// text displayed below the figure
@@ -926,7 +897,7 @@ AdjacencyMatrix::AdjacencyMatrix(Graph &graph, EdgeValueMap &graphweight, double
         i++;
     }
 
-    // Initially all edges have infinity weight
+    // Initially, all edges have infinity weight
     for (int i = 0; i < Nmatrix; i++) AdjMatrix[i] = NonEdgeValue;
     // Then, update the existing edges with the correct weight
     for (EdgeIt e(graph); e != INVALID; ++e) {

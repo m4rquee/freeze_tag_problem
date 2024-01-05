@@ -49,6 +49,7 @@ typedef struct Parameters {
 const Parameters MY_GRAPHLIB_DEFAULT_PARAMETERS;
 extern Parameters MY_GRAPHLIB_PARAMETERS;
 
+// Graph typedefs: -----------------------------------------------------------------------------------------------------
 typedef ListGraph Graph;
 typedef Graph::Node Node;
 typedef Graph::Edge Edge;
@@ -78,7 +79,7 @@ typedef Graph::EdgeMap<bool> EdgeBoolMap;
 typedef Preflow<Graph, EdgeValueMap> PFType;
 const PFType::Tolerance DefTol(MY_EPS);
 
-
+// Digraph typedefs: -----------------------------------------------------------------------------------------------------
 typedef ListDigraph Digraph;
 typedef Digraph::Arc Arc;
 typedef Digraph::ArcIt ArcIt;
@@ -103,7 +104,7 @@ typedef Digraph::NodeMap<string> DNodeStringMap;
 typedef Digraph::NodeMap<bool> DNodeBoolMap;
 typedef Digraph::NodeMap<Arc> DNodeArcMap;
 
-// Used to obtain the node/dnode/edge/arc of a table
+// Used to obtain the node/dnode/edge/arc of a table: ------------------------------------------------------------------
 typedef vector<Node> LineToNodeMap;
 typedef vector<DNode> LineToDNodeMap;
 typedef vector<Edge> LineToEdgeMap;
@@ -112,40 +113,42 @@ typedef vector<Arc> LineToArcMap;
 typedef unordered_map<string, Node> StringToNodeMap;
 typedef unordered_map<string, DNode> StringToDNodeMap;
 
+// Value maps dot product functions: -----------------------------------------------------------------------------------
 inline double Product(Graph &g, NodeValueMap &a, NodeValueMap &b) {
     double s = 0.0;
     for (NodeIt v(g); v != INVALID; ++v) s += a[v] * b[v];
-    return (s);
+    return s;
 }
 inline double Product(Graph &g, EdgeValueMap &a, EdgeValueMap &b) {
     double s = 0.0;
     for (EdgeIt e(g); e != INVALID; ++e) s += a[e] * b[e];
-    return (s);
+    return s;
 }
 inline double Product(Digraph &g, DNodeValueMap &a, DNodeValueMap &b) {
     double s = 0.0;
     for (DNodeIt v(g); v != INVALID; ++v) s += a[v] * b[v];
-    return (s);
+    return s;
 }
 inline double Product(Digraph &g, ArcValueMap &a, ArcValueMap &b) {
     double s = 0.0;
     for (ArcIt e(g); e != INVALID; ++e) s += a[e] * b[e];
-    return (s);
+    return s;
 }
 
-
-inline string GetGraphFileType(string filename) {
+// Graph and Digraph reading: ------------------------------------------------------------------------------------------
+inline string GetGraphFileType(const string &filename) {
     ifstream file;
     file.open(filename.c_str());
     if (!file) {
-        cout << "Error: Could not open file " << filename << "." << endl;
-        exit(0);
+        stringstream buffer;
+        buffer << "Error: Could not open file " << filename << "." << endl;
+        throw runtime_error(buffer.str());
     }
     StringTable Header(1, file);
     string type = Header.first("type");
     lowercase(type);
     file.close();
-    return (type);
+    return type;
 }
 
 bool ReadDigraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
@@ -157,10 +160,6 @@ bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMa
 bool ReadGraph(const string &filename, Graph &g, NodeStringMap &vname, NodePosMap &posx, NodePosMap &posy,
                NodeValueMap *weight);
 
-// Fazer o TableToGraph e o GraphToTable
-// (e se for o caso, o DigraphToTable/TableToDigraph)
-//
-// Deprecated: All InitGraphTable. Use TableToGraph
 bool InitGraphTable(StringTable &T, Graph &g, LineToNodeMap &nodemap);
 bool InitGraphTable(StringTable &T, Graph &g, StringToNodeMap &smap, string colname_v1, string colname_v2,
                     LineToEdgeMap &edgemap);
@@ -181,14 +180,13 @@ bool ReadGraphColumn(StringTable &T, LineToArcMap &arcmap, string colname, ArcVa
 bool ReadGraphColumn(StringTable &T, LineToArcMap &arcmap, string colname, ArcStringMap &read);
 bool ReadGraphColumn(StringTable &T, LineToArcMap &arcmap, string colname, ArcIntMap &read);
 
-
-// ==============================================================
+// Generating vertex positions: ----------------------------------------------------------------------------------------
 bool GenerateVertexPositions(Graph &g, NodePosMap &posx, NodePosMap &posy);
 bool GenerateVertexPositions(Digraph &g, DNodePosMap &posx, DNodePosMap &posy);
-bool GenerateVertexPositions(Graph &g, EdgeValueMap &custo, NodePosMap &posx, NodePosMap &posy);
-bool GenerateVertexPositions(Digraph &g, ArcValueMap &custo, DNodePosMap &posx, DNodePosMap &posy);
+bool GenerateVertexPositions(Graph &g, EdgeValueMap &cost, NodePosMap &posx, NodePosMap &posy);
+bool GenerateVertexPositions(Digraph &g, ArcValueMap &cost, DNodePosMap &posx, DNodePosMap &posy);
 
-
+// Miscellaneous: ------------------------------------------------------------------------------------------------------
 void PrintGraph(Graph &g, NodeStringMap &vname, EdgeValueMap &graphweight);
 
 class AdjacencyMatrix {
@@ -208,7 +206,7 @@ public:
     EdgeIndexMap Edge2Index;
 };
 
-//Generate a random complete euclidean Graph
+// Generate a random complete Euclidean Graph:
 bool GenerateRandomEuclideanGraph(Graph &g,
                                   NodeStringMap &vname,// node names
                                   NodePosMap &px,      // x-position of the nodes
@@ -218,7 +216,7 @@ bool GenerateRandomEuclideanGraph(Graph &g,
                                   double SizeX,        // coordinate x is a random number in [0,SizeX)
                                   double SizeY);       // coordinate y is a random number in [0,SizeY)
 
-//Generate a random complete euclidean Digraph
+// Generate a random complete euclidean Digraph:
 bool GenerateRandomEuclideanDigraph(Digraph &g,
                                     DNodeStringMap &vname,// node names
                                     DNodePosMap &px,      // x-position of the nodes
@@ -229,7 +227,7 @@ bool GenerateRandomEuclideanDigraph(Digraph &g,
                                     double SizeY);        // coordinate y is a random number in [0,SizeY)
 
 
-//Generate a G(n,p) random graph with weights
+// Generate a G(n,p) random graph with weights:
 bool GenerateRandomGraph(Graph &g,
                          int n,               // number of nodes
                          NodeStringMap &vname,// node names
@@ -242,33 +240,23 @@ bool GenerateRandomGraph(Graph &g,
                          double SizeX,        // coordinate x is a random number in [0,SizeX)
                          double SizeY);       // coordinate y is a random number in [0,SizeY)
 
-
-// Given a color code, return its name
-//string ColorName(int cor);
-
+// Obtain a minimum cut for undirected graphs from s to t.
+// The returned cut is given by the vector of nodes 'cut' (boolean vector):
+// nodes v in the same side of s have cut[v]=true, otherwise cut[v]=false.
 double MinCut(Graph &g, EdgeValueMap &weight, Node &s, Node &t, CutMap &cut);
 
-
-// Obtain a mininum cut for directed graphs from s to t.
-// The returned cut is given by the vector of nodes 'cut' (boolean
-// vector: nodes v in the same side of s have cut[v]=true, otherwise cut[v]=false.
+// Obtain a minimum cut for directed graphs from s to t.
+// The returned cut is given by the vector of nodes 'cut' (boolean vector):
+// nodes v in the same side of s have cut[v]=true, otherwise cut[v]=false.
 double DiMinCut(Digraph &g, ArcValueMap &weight, DNode &s, DNode &t, DCutMap &cut);
-
 
 Node GetNodeByName(Graph &g,
                    NodeStringMap &vname,// name of the nodes
-                   string vertexname);
+                   const string& vertexname);
 
 DNode GetDNodeByName(Digraph &g,
                      DNodeStringMap &vname,// name of the nodes
-                     string vertexname);
-
-// Return true if the edge vector is integer
-inline bool IsInteger(Graph &g, EdgeValueMap &vx) {
-    for (EdgeIt e(g); e != INVALID; ++e)
-        if (is_frac(vx[e])) return false;
-    return (true);
-}
+                     const string& vertexname);
 
 
 //--------------------------------------------------------------------------------
@@ -295,7 +283,7 @@ inline bool IsInteger(Graph &g, EdgeValueMap &vx) {
 //      nnodes, nnedges, type
 //      nodename
 //      endpoint1 endpoint2
-// the other fields are optional. It depends on the informations you want to obtain.
+// the other fields are optional. It depends on the information you want to obtain.
 // For some problems, there is only the edge weight.
 // In other, there is node weight,...
 class GraphTable {
