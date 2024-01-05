@@ -102,7 +102,7 @@ inline bool bin_is_zero(double x) { return x < MY_EPS; }
 // Reading tables from text files: -------------------------------------------------------------------------------------
 class StringTable {
 public:
-    StringTable(int nrows, ifstream &file);
+    StringTable(int n, ifstream &file);
     StringTable(int nrows, int ncols);
     int nrows, ncols;
     vector<string> header;

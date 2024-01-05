@@ -22,10 +22,9 @@ int view_pdf_file(const string &filename) {
 StringTable::StringTable(int n, ifstream &file) {
     string word, line;
     this->nrows = n;
-    this->lines.reserve(n);
-    line.resize(n);
-
     this->ncols = 0;
+    this->lines.reserve(n);
+    lines.resize(n);
 
     // Read the header:
     while (getline(file, line) && is_comment(line, "#")) {}

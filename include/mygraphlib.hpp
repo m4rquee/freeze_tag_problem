@@ -24,7 +24,7 @@ using namespace lemon;
 // Be careful to change these parameters, since the instances in the
 // folder ./instances/ are using these default terms in their headers:
 typedef struct Parameters {
-    string graphviz_drawing_program = "neato";// neato, twopi, circo, fdp or dot
+    string graphviz_drawing_program = "dot";// neato, twopi, circo, fdp or dot
 
     // Header table:
     string input_graph_table_nnodes = "nnodes";
