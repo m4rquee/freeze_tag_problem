@@ -30,13 +30,13 @@ public:
 
 extern ColorClass Colors;// like a static instance of ColorClass
 
-inline int ColorCode(string color_name) { return Colors.code[color_name]; }
+inline int ColorCode(const string &color_name) { return Colors.code[color_name]; }
 inline int ColorSize() { return Colors.colors.size(); }
-inline string ColorRGB(string color_name) { return Colors.rgb(Colors.code[color_name]); }
+inline string ColorRGB(const string &color_name) { return Colors.rgb(Colors.code[color_name]); }
 inline string ColorRGB(int color_code) { return Colors.rgb(color_code); }
-inline bool ColorExists(string color_name) { return Colors.exists(color_name); }
+inline bool ColorExists(const string &color_name) { return Colors.exists(color_name); }
 inline string ColorName(int code) { return Colors.name(code); }
-inline int ColorInsert(string color_name, string rgb) { return Colors.insert(color_name, rgb); }
+inline int ColorInsert(const string &color_name, const string &rgb) { return Colors.insert(color_name, rgb); }
 inline void ColorPrint() { Colors.print(); }
 
 int InsertVisuallyDistinctColor(const string &color_name);

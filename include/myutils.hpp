@@ -2,12 +2,13 @@
 #define MY_UTILS_DEFINE
 
 #include <algorithm>
+#include <cmath>
+#include <ctime>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <math.h>
 #include <sstream>
 #include <string>
-#include <time.h>
 #include <vector>
 
 using namespace std;
@@ -26,7 +27,8 @@ int view_pdf_file(const string &filename);// opens a pdf file using the program 
 
 inline bool is_space(char c) { return (c == ' ') || (c == '\t'); }
 
-inline bool is_comment(string line, string prefix) {// if the given prefix appears after all blank characters of a line
+inline bool is_comment(string line,
+                       const string &prefix) {// if the given prefix appears after all blank characters of a line
     int i = 0;
     while (i < line.length() && is_space(line[i])) i++;// skip over blank characters
 
@@ -36,11 +38,13 @@ inline bool is_comment(string line, string prefix) {// if the given prefix appea
     return !line.compare(i, prefix.length(), prefix);// has the prefix after all blank characters
 }
 
-inline bool is_suffix(string str, string suf) {
+inline bool is_suffix(const string &str, const string &suf) {
     return str.size() >= suf.size() && !str.compare(str.size() - suf.size(), suf.size(), suf);
 }
 
-inline bool is_prefix(string str, string pre) { return str.size() >= pre.size() && !str.compare(0, pre.size(), pre); }
+inline bool is_prefix(const string &str, const string &pre) {
+    return str.size() >= pre.size() && !str.compare(0, pre.size(), pre);
+}
 
 inline int hex2int(string s) {
     int n = s.length(), d = 0;

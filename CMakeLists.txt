@@ -21,7 +21,11 @@ link_directories(${CMAKE_SOURCE_DIR}/lemon/lemon-1.3.1/build/lemon)
 link_directories($ENV{GUROBI_HOME}/lib)
 
 # Utils used in all targets
-add_library(graph_utils src/mygraphlib.cpp src/myutils.cpp src/mycolor.cpp include/problem_utils.hpp)
+add_library(graph_utils
+        include/mygraphlib.hpp src/mygraphlib.cpp
+        include/myutils.hpp src/myutils.cpp
+        include/mycolor.hpp src/mycolor.cpp
+        include/problem_utils.hpp src/problem_utils.cpp)
 link_libraries(graph_utils -l:libemon.a) # link the lemon binary
 
 # Compiler flags

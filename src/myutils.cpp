@@ -1,6 +1,4 @@
 #include "myutils.hpp"
-#include <iomanip>
-#include <iostream>
 
 double MY_EPS = 1E-1;
 double MY_INF = 1E10;
@@ -32,7 +30,7 @@ StringTable::StringTable(int n, ifstream &file) {
     this->ncols = 0;
 
     // Read the header:
-    while (getline(file, line) && is_comment(line, "#"));
+    while (getline(file, line) && is_comment(line, "#")) {}
     replace(line.begin(), line.end(), '\t', ' ');
     istringstream tokenizer(line);
     while (getline(tokenizer, word, ' ')) {
@@ -46,7 +44,7 @@ StringTable::StringTable(int n, ifstream &file) {
 
     // Read the rows:
     for (int i = 0; i < this->nrows; i++) {
-        while (getline(file, line) && is_comment(line, "#"));
+        while (getline(file, line) && is_comment(line, "#")) {}
         replace(line.begin(), line.end(), '\t', ' ');
         tokenizer = istringstream(line);
 
@@ -63,7 +61,7 @@ StringTable::StringTable(int n, ifstream &file) {
                 throw runtime_error(buffer.str());
             }
             this->lines[i][c] = word;
-            this->column_size[c] = max(this->column_size[c], (int)word.length());
+            this->column_size[c] = max(this->column_size[c], (int) word.length());
             c++;
         }
         if (c < this->ncols) {

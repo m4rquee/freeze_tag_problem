@@ -34,7 +34,7 @@ int ColorClass::insert(const string &color_name, const string &rgb) {
     return pos;
 }
 
-int InsertVisuallyDistinctColor(const string &color_name) {// you must not insert a same color more than once
+int InsertVisuallyDistinctColor(const string &color_name) {// you must not insert the same color more than once
     int color_code = ColorCode(color_name);
     if (Colors.first_visually_distinct_color == -1) {
         Colors.first_visually_distinct_color = color_code;
