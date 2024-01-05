@@ -25,7 +25,7 @@ public:
     std::map<string, int> code;// dictionary that returns the code of a given color name
     vector<color_element> colors;
     vector<int> ith_visually_distinct_color;
-    int first_visually_distinct_color{}, last_visually_distinct_color{}, n_visually_distinct_colors{};
+    int first_visually_distinct_color, last_visually_distinct_color, n_visually_distinct_colors;
 };
 
 extern ColorClass Colors;// like a static instance of ColorClass
@@ -35,15 +35,17 @@ inline int ColorSize() { return Colors.colors.size(); }
 inline string ColorRGB(string color_name) { return Colors.rgb(Colors.code[color_name]); }
 inline string ColorRGB(int color_code) { return Colors.rgb(color_code); }
 inline bool ColorExists(string color_name) { return Colors.exists(color_name); }
-inline string color_name(int code) { return Colors.name(code); }
+inline string ColorName(int code) { return Colors.name(code); }
 inline int ColorInsert(string color_name, string rgb) { return Colors.insert(color_name, rgb); }
 inline void ColorPrint() { Colors.print(); }
 
-int InsertVisualDistinctColor(const string &color_name);
-int NextVisualDistinctColor(int color_code);
-int FirstVisualDistinctColor();
-int SizeVisualDistinctColor();
-int ith_VisualDistinctColor(int i);
-inline string ith_VisualDistinctColorName(int i) { return Colors.name(ith_VisualDistinctColor(i)); }
+int InsertVisuallyDistinctColor(const string &color_name);
+inline int NextVisuallyDistinctColor(int color_code) {
+    return Colors.first_visually_distinct_color == -1 ? -1 : Colors.colors[color_code].next_visually_distinct_color;
+}
+inline int FirstVisuallyDistinctColor() { return (Colors.first_visually_distinct_color); }
+inline int SizeVisuallyDistinctColor() { return (Colors.n_visually_distinct_colors); }
+inline int ithVisuallyDistinctColor(int i) { return (Colors.ith_visually_distinct_color[i]); }
+inline string ithVisuallyDistinctColorName(int i) { return Colors.name(ithVisuallyDistinctColor(i)); }
 
 #endif// MY_COLOR_DEFINE

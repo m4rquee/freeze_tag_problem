@@ -34,7 +34,7 @@ int ColorClass::insert(const string &color_name, const string &rgb) {
     return pos;
 }
 
-int InsertVisualDistinctColor(const string &color_name) {// you must not insert a same color more than once
+int InsertVisuallyDistinctColor(const string &color_name) {// you must not insert a same color more than once
     int color_code = ColorCode(color_name);
     if (Colors.first_visually_distinct_color == -1) {
         Colors.first_visually_distinct_color = color_code;
@@ -49,17 +49,6 @@ int InsertVisualDistinctColor(const string &color_name) {// you must not insert 
     Colors.n_visually_distinct_colors++;
     return color_code;
 }
-
-int NextVisualDistinctColor(int color_code) {
-    if (Colors.first_visually_distinct_color == -1) return -1;
-    return Colors.colors[color_code].next_visually_distinct_color;
-}
-
-int FirstVisualDistinctColor() { return (Colors.first_visually_distinct_color); }
-
-int SizeVisualDistinctColor() { return (Colors.n_visually_distinct_colors); }
-
-int ith_VisualDistinctColor(int i) { return (Colors.ith_visually_distinct_color[i]); }
 
 void ColorClass::init() {
     this->code["NoColor"] = -1;// This is a special code to represent no given color
@@ -214,24 +203,24 @@ void ColorClass::init() {
     this->insert("White", "#FFFFFF");
 
     // Insert some visually distinct colors:
-    InsertVisualDistinctColor("Red");
-    InsertVisualDistinctColor("Blue");
-    InsertVisualDistinctColor("Magenta");
-    InsertVisualDistinctColor("Orange");
-    InsertVisualDistinctColor("Green");
-    InsertVisualDistinctColor("Pink");
-    InsertVisualDistinctColor("Brown");
-    InsertVisualDistinctColor("Purple");
-    InsertVisualDistinctColor("Yellow");
-    InsertVisualDistinctColor("Cyan");
-    InsertVisualDistinctColor("Gray");
-    InsertVisualDistinctColor("Olive");
-    InsertVisualDistinctColor("Beige");
-    InsertVisualDistinctColor("Lime");
-    InsertVisualDistinctColor("Mint");
-    InsertVisualDistinctColor("Teal");
-    InsertVisualDistinctColor("Navy");
-    InsertVisualDistinctColor("Lavender");
+    InsertVisuallyDistinctColor("Red");
+    InsertVisuallyDistinctColor("Blue");
+    InsertVisuallyDistinctColor("Magenta");
+    InsertVisuallyDistinctColor("Orange");
+    InsertVisuallyDistinctColor("Green");
+    InsertVisuallyDistinctColor("Pink");
+    InsertVisuallyDistinctColor("Brown");
+    InsertVisuallyDistinctColor("Purple");
+    InsertVisuallyDistinctColor("Yellow");
+    InsertVisuallyDistinctColor("Cyan");
+    InsertVisuallyDistinctColor("Gray");
+    InsertVisuallyDistinctColor("Olive");
+    InsertVisuallyDistinctColor("Beige");
+    InsertVisuallyDistinctColor("Lime");
+    InsertVisuallyDistinctColor("Mint");
+    InsertVisuallyDistinctColor("Teal");
+    InsertVisuallyDistinctColor("Navy");
+    InsertVisuallyDistinctColor("Lavender");
 }
 
 ColorClass::ColorClass()
