@@ -12,7 +12,8 @@ typedef Dijkstra<Digraph, ArcIntMap> DijkstraSolver;
 
 class Problem_Instance {// Problem_Instance has all relevant information in one class
 private:
-    bool read_instance(const string &filename, bool calc_clojure, bool tsplib);
+    void read_instance(const string &filename, bool tsplib);
+    void read_tsplib_instance(const string &filename);
 
 public:
     Problem_Instance(const string &filename, int time_limit, bool calc_clojure = false, bool tsplib = false);
@@ -22,6 +23,7 @@ public:
     bool view_solution(double LB, double UB, const string &msg, bool only_active_edges);
     void start_counter();
     void stop_counter();
+    void clojure();
 
     // Time keeping:
     time_point start;
@@ -41,11 +43,12 @@ public:
     // Auxiliary structures:
     ArcBoolMap original;// weather some arc was added in the clojure calculation
     ArcBoolMap solution;// if the arc is present in the found solution
-    int radius;         // the source radius if there is one, or the graph's radius
+    int source_radius;  // the source radius
+    int graph_radius;   // the graph's radius
     // todo: use the AdjacencyMatrix class
     map<DNode, map<DNode, Arc>> arc_map;// graph's adjacency matrix
     DNodeIntMap node_activation;        // node activation time
-    int solution_makespan;              // makespan of the found solution
+    int solution_makespan = -1;         // makespan of the found solution
 };
 
 #endif// PROBLEM_UTILS_DEFINE

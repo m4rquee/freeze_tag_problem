@@ -242,7 +242,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     }
     double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1));
     auto auxUB = MAX_EDGE * minimum_depth;
-    LB = max(LB / MY_EPS, (double) P.radius);
+    LB = max(LB / MY_EPS, (double) P.source_radius);
     bool improved = auxUB < UB / MY_EPS;
     UB = max(LB, min(UB / MY_EPS, auxUB));
     // Construct an initial greedy solution:
