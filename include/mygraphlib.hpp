@@ -78,6 +78,8 @@ typedef Graph::EdgeMap<Node> EdgeNodeMap;
 typedef Graph::EdgeMap<bool> EdgeBoolMap;
 typedef Preflow<Graph, EdgeValueMap> PFType;
 const PFType::Tolerance DefTol(MY_EPS);
+typedef vector<Edge> EdgeVector;
+typedef vector<Node> NodeVector;
 
 // Digraph typedefs: -----------------------------------------------------------------------------------------------------
 typedef ListDigraph Digraph;
@@ -103,6 +105,8 @@ typedef Digraph::NodeMap<double> DNodePosMap;
 typedef Digraph::NodeMap<string> DNodeStringMap;
 typedef Digraph::NodeMap<bool> DNodeBoolMap;
 typedef Digraph::NodeMap<Arc> DNodeArcMap;
+typedef vector<Arc> ArcVector;
+typedef vector<DNode> DNodeVector;
 
 // Used to obtain the node/dnode/edge/arc of a table: ------------------------------------------------------------------
 typedef vector<Node> LineToNodeMap;

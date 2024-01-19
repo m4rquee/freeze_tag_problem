@@ -1,50 +1,51 @@
-#ifndef Problem_UTILS_DEFINE
-#define Problem_UTILS_DEFINE
+#ifndef PROBLEM_UTILS_DEFINE
+#define PROBLEM_UTILS_DEFINE
 
 #include "mygraphlib.hpp"
 #include <chrono>
 #include <lemon/dijkstra.h>
 
 using namespace lemon;
-using namespace std;
 
 typedef chrono::time_point<chrono::system_clock> time_point;
-typedef vector<Arc> ArcVector;
-typedef vector<DNode> DNodeVector;
 typedef Dijkstra<Digraph, ArcIntMap> DijkstraSolver;
 
-// Problem_Instance put all relevant information in one class.
-class Problem_Instance {
+class Problem_Instance {// Problem_Instance has all relevant information in one class
+private:
+    bool read_instance(const string &filename, bool calc_clojure, bool tsplib);
+
 public:
-    Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy, DNode &sourcenode,
-                     int nnodes, int time_limit, ArcIntMap &weight, ArcBoolMap &original, int source_radius);
+    Problem_Instance(const string &filename, int time_limit, bool calc_clojure = false, bool tsplib = false);
+
+    // Auxiliary function:
+    void print_instance();
+    bool view_solution(double LB, double UB, const string &msg, bool only_active_edges);
     void start_counter();
     void stop_counter();
 
-    Digraph &g;
-    DNodeStringMap &vname;
-    DNodePosMap &px;
-    DNodePosMap &py;
-    const int nnodes;
-    DNode &source;
+    // Time keeping:
     time_point start;
     time_point stop;
-    const int time_limit;
-    ArcIntMap &weight;
-    ArcBoolMap &original;
-    ArcBoolMap solution;
-    int source_radius;                  // the source radius if there is one, or the graph`s radius
-    map<DNode, map<DNode, Arc>> arc_map;// used for fast arc lookup
-    DNodeIntMap node_makespan;
-    int solution_height;
+    unsigned int time_limit;
+
+    // Graph instance:
+    Digraph g;           // underlying digraph
+    DNodeStringMap vname;// node name
+    ArcIntMap weight;    // arc weight
+    DNodePosMap px;      // node x position
+    DNodePosMap py;      // node y position
+    unsigned int nnodes; // number of nodes
+    unsigned int narcs;  // number of arcs
+    DNode source;        // Freeze-Tag's source node
+
+    // Auxiliary structures:
+    ArcBoolMap original;// weather some arc was added in the clojure calculation
+    ArcBoolMap solution;// if the arc is present in the found solution
+    int radius;         // the source radius if there is one, or the graph's radius
+    // todo: use the AdjacencyMatrix class
+    map<DNode, map<DNode, Arc>> arc_map;// graph's adjacency matrix
+    DNodeIntMap node_activation;        // node activation time
+    int solution_makespan;              // makespan of the found solution
 };
 
-void PrintInstanceInfo(Problem_Instance &P);
-
-bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                      DNode &source, int &nnodes, ArcIntMap &weight, ArcBoolMap &original, int &source_radius,
-                      bool calc_clojure = false, bool tsplib = false);
-
-bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string &msg, bool only_active_edges);
-
-#endif// Problem_UTILS_DEFINE
+#endif// PROBLEM_UTILS_DEFINE

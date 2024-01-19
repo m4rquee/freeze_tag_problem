@@ -1,31 +1,33 @@
 #include "problem_utils.hpp"
 
-Problem_Instance::Problem_Instance(Digraph &graph, DNodeStringMap &vvname, DNodePosMap &posx, DNodePosMap &posy,
-                                   DNode &sourcenode, int nnodes, int time_limit, ArcIntMap &pweight,
-                                   ArcBoolMap &poriginal, int psource_radius)
-    : g(graph), vname(vvname), px(posx), py(posy), nnodes(nnodes), source(sourcenode), time_limit(time_limit),
-      weight(pweight), original(poriginal), solution(g), source_radius(psource_radius), node_makespan(g) {
+Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool calc_clojure, bool tsplib)
+    : time_limit(time_limit), vname(g), weight(g), px(g), py(g), original(g), solution(g), node_activation(g) {
+    if (!read_instance(filename, calc_clojure, tsplib)) {
+        cout << "Error while reding the input graph." << endl;
+        exit(EXIT_FAILURE);
+    }
+
     for (ArcIt e(g); e != INVALID; ++e) {
         arc_map[g.source(e)][g.target(e)] = e;
         solution[e] = false;
     }
-    for (DNodeIt v(g); v != INVALID; ++v) node_makespan[v] = -1;
+    for (DNodeIt v(g); v != INVALID; ++v) node_activation[v] = -1;
 }
 
 void Problem_Instance::start_counter() { start = chrono::system_clock::now(); }
 
 void Problem_Instance::stop_counter() { stop = chrono::system_clock::now(); }
 
-void PrintInstanceInfo(Problem_Instance &P) {
+void Problem_Instance::print_instance() {
 #ifdef BDHST
     cout << "Bounded Degree Minimum Height Spanning Tree graph information" << endl;
 #else
     cout << "Freeze-Tag graph information" << endl;
 #endif
-    cout << "\tTime limit = " << P.time_limit << "s" << endl;
-    cout << "\tNumber of nodes = " << P.nnodes << endl;
-    if (P.source != INVALID) cout << "\tSource = " << P.vname[P.source] << endl;
-    if (P.source != INVALID) cout << "\tSource radius = " << P.source_radius * MY_EPS << endl;
+    cout << "\tTime limit = " << time_limit << "s" << endl;
+    cout << "\tNumber of nodes = " << nnodes << endl;
+    if (source != INVALID) cout << "\tSource = " << vname[source] << endl;
+    if (source != INVALID) cout << "\tSource radius = " << radius * MY_EPS << endl;
     cout << endl;
 }
 
@@ -64,13 +66,11 @@ bool ReadTSPLIBDigraph(const string &filename, Digraph &g, DNodeStringMap &vname
     return true;
 }
 
-bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname, DNodePosMap &posx, DNodePosMap &posy,
-                      DNode &source, int &nnodes, ArcIntMap &weight, ArcBoolMap &original, int &source_radius,
-                      bool calc_clojure, bool tsplib) {
+bool Problem_Instance::read_instance(const string &filename, bool calc_clojure, bool tsplib) {
     if (tsplib) {
-        if (!ReadTSPLIBDigraph(filename, g, vname, posx, posy, weight)) return false;
+        if (!ReadTSPLIBDigraph(filename, g, vname, px, py, weight)) return false;
     } else {
-        if (!ReadDigraph(filename, g, vname, posx, posy, weight)) return false;
+        if (!ReadDigraph(filename, g, vname, px, py, weight)) return false;
         // Scale up to treat rational values as integers:
         for (ArcIt e(g); e != INVALID; ++e) weight[e] = (int) (weight[e] / MY_EPS);
     }
@@ -99,10 +99,10 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 
     if (!calc_clojure) return true;
 
-    source_radius = 0;
+    radius = 0;
 #ifdef BDHST
     int curr_radius;
-    source_radius = INT_LEAST32_MAX;
+    radius = INT_LEAST32_MAX;
 #endif
     // Run a Dijkstra using each node as source and them add an arc to each node with the distance:
     DijkstraSolver dijkstra_solver(g, weight);
@@ -122,7 +122,7 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
 #ifdef BDHST
             curr_radius = max(curr_radius, dist);
 #else
-            if (v == source) source_radius = max(source_radius, dist);
+            if (v == source) radius = max(radius, dist);
 #endif
             if (tsplib) continue;// no need to execute the following
             if (aux == INVALID) {// if this arc is not present then add it with the distance as weight
@@ -132,41 +132,41 @@ bool ReadProblemGraph(const string &filename, Digraph &g, DNodeStringMap &vname,
             weight[aux] = dist;
         }
 #ifdef BDHST
-        source_radius = min(source_radius, curr_radius);
+        radius = min(radius, curr_radius);
 #endif
     }
     return true;
 }
 
-bool ViewProblemSolution(Problem_Instance &P, double LB, double UB, const string &msg, bool only_active_edges) {
-    DigraphAttributes GA(P.g, P.vname, P.px, P.py);
+bool Problem_Instance::view_solution(double LB, double UB, const string &msg, bool only_active_edges) {
+    DigraphAttributes GA(g, vname, px, py);
     GA.SetDigraphAttrib("splines=true");
     GA.SetDefaultDNodeAttrib("color=gray style=filled shape=circle fixedsize=true");
     GA.SetDefaultArcAttrib("color=black arrowhead=none fontcolor=red");
     if (only_active_edges) GA.SetDefaultArcAttrib("style=invis");
 
     int i = 0;
-    ArcVector used_arcs(P.nnodes - 1);
-    for (ArcIt e(P.g); e != INVALID; ++e) {
-        if (P.solution[e]) used_arcs[i++] = e;
+    ArcVector used_arcs(nnodes - 1);
+    for (ArcIt e(g); e != INVALID; ++e) {
+        if (solution[e]) used_arcs[i++] = e;
     }
-    for (i = 0; i < P.nnodes - 1; i++) {
+    for (i = 0; i < nnodes - 1; i++) {
         auto e = used_arcs[i];
-        if (P.nnodes < 100) GA.SetLabel(e, P.weight[e] * MY_EPS);
-        if (P.original[e]) e = P.g.addArc(P.g.source(e), P.g.target(e));// duplicate if already exists
+        if (nnodes < 100) GA.SetLabel(e, weight[e] * MY_EPS);
+        if (original[e]) e = g.addArc(g.source(e), g.target(e));// duplicate if already exists
         GA.SetColor(e, "red");
         GA.SetAttrib(e, "style=dashed arrowhead=normal");
     }
     auto max_height = 0;
-    for (DNodeIt v(P.g); v != INVALID; ++v) max_height = max(max_height, P.node_makespan[v]);
-    for (DNodeIt v(P.g); v != INVALID; ++v)
-        if (P.node_makespan[v] == max_height) GA.SetColor(v, "cyan");// highlight the deepest nodes
-    GA.SetColor(P.source, "pink");
+    for (DNodeIt v(g); v != INVALID; ++v) max_height = max(max_height, node_activation[v]);
+    for (DNodeIt v(g); v != INVALID; ++v)
+        if (node_activation[v] == max_height) GA.SetColor(v, "cyan");// highlight the deepest nodes
+    GA.SetColor(source, "pink");
 #ifdef BDHST
-    GA.SetLabel("Tree rooted at node " + P.vname[P.source] + " of height " + DoubleToString(UB) +
-                ". LB = " + DoubleToString(LB) + ". " + msg);
+    GA.SetLabel("Tree rooted at node " + vname[source] + " of height " + to_string(UB) + ". LB = " + to_string(LB) +
+                ". " + msg);
 #else
-    GA.SetLabel("Scheduling starting from node " + P.vname[P.source] + " of makespan " + to_string(UB) +
+    GA.SetLabel("Scheduling starting from node " + vname[source] + " of makespan " + to_string(UB) +
                 ". LB = " + to_string(LB) + ". " + msg);
 #endif
     GA.View();

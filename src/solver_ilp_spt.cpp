@@ -38,13 +38,13 @@ public:
         for (ArcIt e(P.g); e != INVALID; ++e)// starts all arcs values
             arc_value[e] = P.solution[e];
         for (DNodeIt v(P.g); v != INVALID; ++v)// starts all nodes height
-            node_height[v] = P.node_height[v];
+            node_height[v] = P.node_activation[v];
     }
 
     double init() {
         where = GRB_CB_START;
         callback();
-        return P.solution_height;
+        return P.solution_makespan;
     }
 
 protected:
@@ -163,12 +163,12 @@ protected:
         if (found_new_sol) {
             auto new_sol_h = 0.0;
             for (DNodeIt v(P.g); v != INVALID; ++v) new_sol_h = max(new_sol_h, node_height[v]);
-            if (new_sol_h < P.solution_height) {// copy the solution if its better:
+            if (new_sol_h < P.solution_makespan) {// copy the solution if its better:
                 for (ArcIt e(P.g); e != INVALID; ++e) P.solution[e] = arc_value[e];
-                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_height[v] = (int) node_height[v];
+                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_activation[v] = (int) node_height[v];
                 cout << "\n→ Found a solution with local search of height " << MY_EPS * new_sol_h << " over "
-                     << MY_EPS * P.solution_height;
-                P.solution_height = new_sol_h;
+                     << MY_EPS * P.solution_makespan;
+                P.solution_makespan = new_sol_h;
             } else
                 cout << "\n→ Found a solution with local search of same height, but better total cost";
             cout << "\n\n";
@@ -188,10 +188,10 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
             min_arc_weight = P.weight[e];
         }
     P.solution[min_arc] = true;
-    P.node_height[source] = 0;
+    P.node_activation[source] = 0;
     auto target = P.g.target(min_arc);
-    P.node_height[target] = min_arc_weight;
-    P.solution_height = min_arc_weight;
+    P.node_activation[target] = min_arc_weight;
+    P.solution_makespan = min_arc_weight;
 
     // Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
     DNodeIntMap degree(P.g);
@@ -218,8 +218,8 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
             }
         auto u = P.g.source(min_arc), v = P.g.target(min_arc);
         P.solution[min_arc] = true;
-        P.node_height[v] = P.node_height[u] + min_arc_weight;
-        P.solution_height = max(P.solution_height, P.node_height[v]);
+        P.node_activation[v] = P.node_activation[u] + min_arc_weight;
+        P.solution_makespan = max(P.solution_makespan, P.node_activation[v]);
         degree[u]++;
         if (degree[u] == max_degree - (u != source)) {// becomes saturated with max_degree-1 children
             auto aux = remove(border.begin(), border.end(), u);
@@ -228,7 +228,7 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
         degree[v] = 0;
         border.push_back(v);
     }
-    return P.solution_height;
+    return P.solution_makespan;
 }
 
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
@@ -242,7 +242,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     }
     double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1));
     auto auxUB = MAX_EDGE * minimum_depth;
-    LB = max(LB / MY_EPS, (double) P.source_radius);
+    LB = max(LB / MY_EPS, (double) P.radius);
     bool improved = auxUB < UB / MY_EPS;
     UB = max(LB, min(UB / MY_EPS, auxUB));
     // Construct an initial greedy solution:
@@ -295,7 +295,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     // ILP problem variables startup: --------------------------------------------
     height = model.addVar(LB, UB, 1.0, GRB_INTEGER, "height");
-    height.set(GRB_DoubleAttr_Start, P.solution_height);
+    height.set(GRB_DoubleAttr_Start, P.solution_makespan);
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
@@ -307,7 +307,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         char name[100];
         sprintf(name, "h_%s", P.vname[v].c_str());
         h_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
-        h_v[v].set(GRB_DoubleAttr_Start, P.node_height[v]);
+        h_v[v].set(GRB_DoubleAttr_Start, P.node_activation[v]);
 #ifdef BDHST
         sprintf(name, "s_%s", P.vname[v].c_str());
         r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
@@ -437,7 +437,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     UB = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         int node_height = ceil(h_v[v].get(GRB_DoubleAttr_X));
-        P.node_height[v] = node_height;
+        P.node_activation[v] = node_height;
         cout << P.vname[v].c_str() << '-' << node_height * MY_EPS << ";";
 #ifdef BDHST
         if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
@@ -464,20 +464,12 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     return improved;
 }
 
+using namespace std::chrono;
+
 int main(int argc, char *argv[]) {
-    int maxtime;
+    int time_limit;
     bool only_active_edges = true, tsplib = false;
-    Digraph g;// graph declaration
-    string graph_filename, source_node_name;
-    DNodeStringMap vname(g); // name of graph nodes
-    DNodePosMap px(g), py(g);// xy-coordinates for each node
-    DNodeColorMap vcolor(g); // color of nodes
-    ArcStringMap ename(g);   // name for graph arcs
-    ArcColorMap ecolor(g);   // color of arcs
-    ArcValueMap lpvar(g);    // used to obtain the contents of the LP variables
-    ArcIntMap weight(g);     // arc weights
-    ArcBoolMap original(g);  // if an arc is original
-    vector<DNode> V;
+    string filename, source_node_name;
 
     if (argc < 3) {
         cout << endl
@@ -494,11 +486,10 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    using namespace std::chrono;
     seed = (int) duration_cast<minutes>(system_clock::now().time_since_epoch()).count();
     srand(seed);
-    graph_filename = argv[1];
-    maxtime = atoi(argv[2]);
+    filename = argv[1];
+    time_limit = atoi(argv[2]);
     if (argc >= 4) tsplib = strcmp(argv[3], "-tsplib=true") == 0;
     if (argc >= 5) only_active_edges = strcmp(argv[3], "-only_active_edges=true") == 0;
     MY_EPS = 1E-2;
@@ -506,22 +497,13 @@ int main(int argc, char *argv[]) {
     if (argc >= 6) LB = atof(argv[5]);
     if (argc >= 7) UB = atof(argv[6]);
 
-    DNode source;
-    int nnodes, source_radius;
-    if (!ReadProblemGraph(graph_filename, g, vname, px, py, source, nnodes, weight, original, source_radius, true,
-                          tsplib)) {
-        cout << "Error while reding the input graph." << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    Problem_Instance P(g, vname, px, py, source, nnodes, maxtime, weight, original, source_radius);
-    PrintInstanceInfo(P);
-
     try {
+        Problem_Instance P(filename, time_limit, true, tsplib);
+        P.print_instance();
         if (solve(P, LB, UB)) {
             char msg[100];
             sprintf(msg, " Gap of %.2f%%.", 100 * (UB - LB) / UB);
-            ViewProblemSolution(P, LB, UB, msg, only_active_edges);
+            P.view_solution(LB, UB, msg, only_active_edges);
             cout << "UB cost: " << UB << endl;
         }
     } catch (std::exception &e) {
@@ -535,5 +517,3 @@ int main(int argc, char *argv[]) {
     }
     return 0;
 }
-
-#pragma clang diagnostic pop
