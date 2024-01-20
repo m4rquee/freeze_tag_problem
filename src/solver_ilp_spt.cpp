@@ -491,7 +491,7 @@ int main(int argc, char *argv[]) {
     filename = argv[1];
     time_limit = atoi(argv[2]);
     if (argc >= 4) tsplib = strcmp(argv[3], "-tsplib=true") == 0;
-    if (argc >= 5) only_active_edges = strcmp(argv[3], "-only_active_edges=true") == 0;
+    if (argc >= 5) only_active_edges = strcmp(argv[4], "-only_active_edges=true") == 0;
     MY_EPS = 1E-2;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
     if (argc >= 6) LB = atof(argv[5]);

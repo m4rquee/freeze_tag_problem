@@ -112,39 +112,52 @@ void Problem_Instance::clojure() {
             if (u == v) continue;
 
             int dist = dijkstra_solver.dist(v);
-            auto aux = findArc(g, u, v);
             curr_radius = max(curr_radius, dist);// update the current radius
 #ifndef BDHST
             if (v == source) source_radius = max(source_radius, dist);// update the source radius
 #endif
+
+            // Add a directed both way connection between u and v:
+            auto aux = findArc(g, u, v);
             if (aux == INVALID) {// if this arc is not present, then add
                 aux = g.addArc(u, v);
-                original[aux] = false;// the tslib instances represent complete graphs
+                original[aux] = false;
             }
-            weight[aux] = dist;// update the weight to reflect the minimum cost path
+            weight[aux] = dist;// update the weight to reflect the cost of a minimum path
+            auto rev = findArc(g, v, u);
+            if (rev == INVALID) {// if the reverse of this arc is not present, then add
+                rev = g.addArc(v, u);
+                original[rev] = false;
+            }
+            weight[rev] = dist;
         }
         graph_radius = min(graph_radius, curr_radius);// update the graph's radius
     }
 }
 
-bool Problem_Instance::view_solution(double LB, double UB, const string &msg, bool only_active_edges) {
+void Problem_Instance::view_solution(double LB, double UB, const string &msg, bool only_active_edges) {
     DigraphAttributes GA(g, vname, px, py);
-    GA.SetDigraphAttrib("splines=true");
+    GA.SetDigraphAttrib("splines=true overlap=false");
     GA.SetDefaultDNodeAttrib("color=gray style=filled shape=circle fixedsize=true");
-    GA.SetDefaultArcAttrib("color=black arrowhead=none fontcolor=red");
-    if (only_active_edges) GA.SetDefaultArcAttrib("style=invis");
+    GA.SetDefaultArcAttrib("color=black arrowhead=none fontcolor=black style=invis");
 
-    int i = 0;
-    ArcVector used_arcs(nnodes - 1);
+    ArcVector used_arcs;// save used arcs to avoid arc duplication inside interation
     for (ArcIt e(g); e != INVALID; ++e) {
-        if (solution[e]) used_arcs[i++] = e;
+        if (solution[e]) used_arcs.push_back(e);
+        if (!only_active_edges && original[e]) GA.SetAttrib(e, "style=solid");
     }
-    for (i = 0; i < nnodes - 1; i++) {
-        auto e = used_arcs[i];
-        if (nnodes < 100) GA.SetLabel(e, weight[e] * MY_EPS);
-        if (original[e]) e = g.addArc(g.source(e), g.target(e));// duplicate if already exists
+    for (auto &e: used_arcs) {
+        int e_weight = weight[e];
+        auto rev = findArc(g, g.target(e), g.source(e));
+        auto rev_is_orig = rev != INVALID && original[rev];
+        if (original[e] || rev_is_orig) e = g.addArc(g.source(e), g.target(e));// duplicate if already exists
         GA.SetColor(e, "red");
         GA.SetAttrib(e, "style=dashed arrowhead=normal");
+        if (nnodes < 100) {
+            std::ostringstream oss;
+            oss << std::setprecision(ceil(log10(UB / MY_EPS))) << e_weight * MY_EPS;
+            GA.SetLabel(e, oss.str());
+        }
     }
     auto max_height = 0;
     for (DNodeIt v(g); v != INVALID; ++v) max_height = max(max_height, node_activation[v]);
@@ -159,5 +172,4 @@ bool Problem_Instance::view_solution(double LB, double UB, const string &msg, bo
                 ". LB = " + to_string(LB) + ". " + msg);
 #endif
     GA.View();
-    return true;
 }

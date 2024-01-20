@@ -20,7 +20,7 @@ public:
 
     // Auxiliary function:
     void print_instance();
-    bool view_solution(double LB, double UB, const string &msg, bool only_active_edges);
+    void view_solution(double LB, double UB, const string &msg, bool only_active_edges);
     void start_counter();
     void stop_counter();
     void clojure();

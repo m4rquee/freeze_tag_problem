@@ -235,13 +235,12 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
     // Calculates the best know objective bounds:
-    int MAX_EDGE = 0, DIAMETER = 0;
-    for (ArcIt e(P.g); e != INVALID; ++e) {
-        if (P.original[e]) MAX_EDGE = max(MAX_EDGE, P.weight[e]);
-        DIAMETER = max(DIAMETER, P.weight[e]);
-    }
-    double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1));
-    auto auxUB = MAX_EDGE * minimum_depth;
+    double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1)) + 1;
+#ifdef BDHST
+    auto auxUB = P.graph_radius * minimum_depth;
+#else
+    auto auxUB = P.source_radius * minimum_depth;
+#endif
     LB = max(LB / MY_EPS, (double) P.source_radius);
     bool improved = auxUB < UB / MY_EPS;
     UB = max(LB, min(UB / MY_EPS, auxUB));
@@ -264,9 +263,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_DoubleParam_OptimalityTol, MY_EPS);
 
     // ILP solver parameters: ----------------------------------------------------
-    /*if (P.nnodes >= 300) model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_FEASIBILITY);
-    else
-        model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_OPTIMALITY);
+    /*model.set(GRB_IntParam_MIPFocus, GRB_MIPFOCUS_OPTIMALITY);
     model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
     model.set(GRB_DoubleParam_Heuristics, 0.25);*/
@@ -289,7 +286,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     // Cutoff and bounds setup: --------------------------------------------------
     cout << "Set parameter LB to value " << LB * MY_EPS << endl;
     cout << "Set parameter UB to value " << UB * MY_EPS << endl;
-    auto cutoff = UB;
+    auto cutoff = UB + 1;
     model.set(GRB_DoubleParam_Cutoff, cutoff);// set the best know UB
 
     // ILP problem variables startup: --------------------------------------------
@@ -489,7 +486,7 @@ int main(int argc, char *argv[]) {
     filename = argv[1];
     time_limit = atoi(argv[2]);
     if (argc >= 4) tsplib = strcmp(argv[3], "-tsplib=true") == 0;
-    if (argc >= 5) only_active_edges = strcmp(argv[3], "-only_active_edges=true") == 0;
+    if (argc >= 5) only_active_edges = strcmp(argv[4], "-only_active_edges=true") == 0;
     MY_EPS = 1E-2;
     double LB = 0, UB = MY_INF;// consider MY_INF as infinity.
     if (argc >= 6) LB = atof(argv[5]);
