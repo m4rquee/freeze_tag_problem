@@ -446,13 +446,16 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         LB = UB;
 
     // Display the best know solution:
+    ArcVector to_remove;// save non-original and non-used arcs to remove latter
     cout << endl << "Tree edges: ";
     for (ArcIt e(P.g); e != INVALID; ++e) {
         bool active = x_e[e].get(GRB_DoubleAttr_X) >= 1 - MY_EPS;
         P.solution[e] = active;
         if (active) cout << P.vname[P.g.source(e)].c_str() << '-' << P.vname[P.g.target(e)].c_str() << ";";
-        if (!P.original[e] && !active) P.g.erase(e);
+        else if (!P.original[e])
+            to_remove.push_back(e);
     }
+    for (auto &e: to_remove) P.g.erase(e);// remove non-original and non-used arcs
     cout << endl;
     cout << "New LB: " << LB << endl;
 

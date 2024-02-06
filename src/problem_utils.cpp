@@ -3,18 +3,18 @@
 Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool calc_clojure, bool tsplib)
     : time_limit(time_limit), vname(g), weight(g), px(g), py(g), original(g), solution(g), node_activation(g) {
     read_instance(filename, tsplib);
-    source_radius = graph_radius = -1;
-    if (calc_clojure) clojure();
 
     // Initialize the attributes:
+    source_radius = graph_radius = -1;
+    source = INVALID;
     nnodes = countNodes(g);
     narcs = countArcs(g);
-    source = INVALID;
 #ifndef BDHST
     if (tsplib) source = Digraph::nodeFromId(g.maxNodeId());
     else
         source = Digraph::nodeFromId(0);
 #endif
+    if (calc_clojure) clojure();
     for (ArcIt e(g); e != INVALID; ++e) {
         arc_map[g.source(e)][g.target(e)] = e;
         solution[e] = false;
@@ -88,7 +88,7 @@ void Problem_Instance::read_instance(const string &filename, bool tsplib) {
     // Ensure the digraph is strongly connected by adding each arc reverse:
     int i = 0;
     vector<Arc> original_edges(countArcs(g));
-    for (ArcIt e(g); e != INVALID; ++e, i++) original[original_edges[i] = e] = true;// save the original arcs
+    for (ArcIt e(g); e != INVALID; ++e, i++) original[original_edges[i] = e] = !tsplib;// save the original arcs
     for (i--; i >= 0; i--) {
         auto e = original_edges[i];
         auto rev = findArc(g, g.target(e), g.source(e));
@@ -114,7 +114,7 @@ void Problem_Instance::clojure() {
             int dist = dijkstra_solver.dist(v);
             curr_radius = max(curr_radius, dist);// update the current radius
 #ifndef BDHST
-            if (v == source) source_radius = max(source_radius, dist);// update the source radius
+            if (u == source) source_radius = max(source_radius, dist);// update the source radius
 #endif
 
             // Add a directed both way connection between u and v:
@@ -137,9 +137,8 @@ void Problem_Instance::clojure() {
 
 void Problem_Instance::view_solution(double LB, double UB, const string &msg, bool only_active_edges) {
     DigraphAttributes GA(g, vname, px, py);
-    GA.SetDigraphAttrib("splines=true overlap=false");
     GA.SetDefaultDNodeAttrib("color=gray style=filled shape=circle fixedsize=true");
-    GA.SetDefaultArcAttrib("color=black arrowhead=none fontcolor=black style=invis");
+    GA.SetDefaultArcAttrib("color=black arrowhead=none fontcolor=black style=invis fontsize=10");
 
     ArcVector used_arcs;// save used arcs to avoid arc duplication inside interation
     for (ArcIt e(g); e != INVALID; ++e) {
@@ -166,10 +165,10 @@ void Problem_Instance::view_solution(double LB, double UB, const string &msg, bo
     GA.SetColor(source, "pink");
 #ifdef BDHST
     GA.SetLabel("Tree rooted at node " + vname[source] + " of height " + to_string(UB) + ". LB = " + to_string(LB) +
-                ". " + msg);
+                "." + msg);
 #else
     GA.SetLabel("Scheduling starting from node " + vname[source] + " of makespan " + to_string(UB) +
-                ". LB = " + to_string(LB) + ". " + msg);
+                ". LB = " + to_string(LB) + "." + msg);
 #endif
     GA.View();
 }
