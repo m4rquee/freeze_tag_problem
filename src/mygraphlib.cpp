@@ -819,10 +819,8 @@ bool DigraphAttributes::View()// text displayed below the figure
     fclose(fp);
     sprintf(cmd, "%s -x -Tpdf %s -o %s", MY_GRAPHLIB_PARAMETERS.graphviz_drawing_program.c_str(), tempname, outputname);
     system(cmd);
-    //cout << "Grafo em "<< tempname << "\n";
     view_pdf_file(outputname);
-    //pause();
-    return (true);
+    return true;
 }
 
 

@@ -181,7 +181,7 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
     // Connect the source to some closest node:
     Arc min_arc = INVALID;
     int min_arc_weight = GRB_MAXINT;
-    auto source = P.source != INVALID ? P.source : Digraph::nodeFromId(rand() % countNodes(P.g));
+    auto source = P.source != INVALID ? P.source : Digraph::nodeFromId(0);
     for (OutArcIt e(P.g, source); e != INVALID; ++e)
         if (P.weight[e] < min_arc_weight) {
             min_arc = e;
@@ -234,14 +234,15 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
-    // Calculates the best know objective bounds:
-    double minimum_depth = ceil(log(P.nnodes) / log(max_degree - 1)) + 1;
+    // Calculates the best known objective bounds:
 #ifdef BDHST
-    auto auxUB = P.graph_radius * minimum_depth;
+    double minimum_depth = ceil(log((max_degree - 2.0) / max_degree * (P.nnodes - 1) + 1) / log(max_degree - 1));
+    LB = max(LB / MY_EPS, (double) P.graph_radius);
 #else
-    auto auxUB = P.source_radius * minimum_depth;
-#endif
+    double minimum_depth = ceil(log(P.nnodes) / log(2));
     LB = max(LB / MY_EPS, (double) P.source_radius);
+#endif
+    auto auxUB = P.graph_diameter * minimum_depth;
     bool improved = auxUB < UB / MY_EPS;
     UB = max(LB, min(UB / MY_EPS, auxUB));
     // Construct an initial greedy solution:
@@ -470,17 +471,13 @@ int main(int argc, char *argv[]) {
     string filename, source_node_name;
 
     if (argc < 3) {
-        cout << endl
-             << "Integer Linear Program for the Freeze-Tag Problem using the Gurobi solver;" << endl
-             << "Usage: " << argv[0]
-             << "  <ftp_graph_filename> <maximum_time_sec> <ftp_graph_filename> [-tsplib=true|false]"
+        cout << "Integer Linear Program for the Freeze-Tag Problem using the Gurobi solver;" << endl
+             << "Usage:" << endl
+             << "\t" << argv[0]
+             << " <ftp_graph_filename> <maximum_time_sec> [-tsplib=true|false]"
                 " [-only_active_edges=true|false] [LB] [UB]"
-             << endl
              << endl;
-        cout << "Example:" << endl
-             << "\t" << argv[0] << " "
-             << "../instances/small/tree-003.g 10" << endl
-             << endl;
+        cout << "Example:" << endl << "\t" << argv[0] << " ../instances/tsp_lib/test10.tsp 10 -tsplib=true" << endl;
         exit(0);
     }
 
@@ -499,10 +496,10 @@ int main(int argc, char *argv[]) {
         Problem_Instance P(filename, time_limit, true, tsplib);
         P.print_instance();
         if (solve(P, LB, UB)) {
+            cout << "UB cost: " << UB << endl;
             char msg[100];
             sprintf(msg, " Gap of %.2f%%.", 100 * (UB - LB) / UB);
             P.view_solution(LB, UB, msg, only_active_edges);
-            cout << "UB cost: " << UB << endl;
         }
     } catch (std::exception &e) {
         cout << "UB cost: " << UB << endl;

@@ -5,10 +5,8 @@ Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool 
     read_instance(filename, tsplib);
 
     // Initialize the attributes:
-    source_radius = graph_radius = -1;
+    source_radius = graph_radius = graph_diameter = -1;
     source = INVALID;
-    nnodes = countNodes(g);
-    narcs = countArcs(g);
 #ifndef BDHST
     if (tsplib) source = Digraph::nodeFromId(g.maxNodeId());
     else
@@ -34,12 +32,13 @@ void Problem_Instance::print_instance() {
 #endif
     cout << "\tTime limit = " << time_limit << "s" << endl;
     cout << "\tNumber of nodes = " << nnodes << endl;
-    cout << "\tNumber of edges = " << narcs << endl;
+    cout << "\tNumber of original edges = " << narcs << endl;
     if (source != INVALID) {
         cout << "\tSource = " << vname[source] << endl;
         cout << "\tSource radius = " << source_radius * MY_EPS << endl;
     }
     cout << "\tGraph radius = " << graph_radius * MY_EPS << endl;
+    cout << "\tGraph diameter = " << graph_diameter * MY_EPS << endl;
     cout << endl;
 }
 
@@ -68,7 +67,7 @@ void Problem_Instance::read_tsplib_instance(const string &filename) {
     for (getline(file, line); line != "EOF"; getline(file, line)) {
         sscanf(line.c_str(), "%d %lf %lf", &id, &x, &y);
         auto u = g.addNode();
-        vname[u] = to_string(id - 1);
+        vname[u] = to_string(id);
         px[u] = x;
         py[u] = y;
         DNodeIt v(g);
@@ -79,11 +78,14 @@ void Problem_Instance::read_tsplib_instance(const string &filename) {
 void Problem_Instance::read_instance(const string &filename, bool tsplib) {
     if (tsplib) {
         read_tsplib_instance(filename);
+        narcs = 0;
     } else {
         ReadDigraph(filename, g, vname, px, py, weight);
         for (ArcIt e(g); e != INVALID; ++e)
             weight[e] = floor(weight[e] / MY_EPS);// scale up so we can treat rational values as integers
+        narcs = countArcs(g);
     }
+    nnodes = countNodes(g);
 
     // Ensure the digraph is strongly connected by adding each arc reverse:
     int i = 0;
@@ -113,6 +115,7 @@ void Problem_Instance::clojure() {
 
             int dist = dijkstra_solver.dist(v);
             curr_radius = max(curr_radius, dist);// update the current radius
+            graph_diameter = max(graph_diameter, dist);
 #ifndef BDHST
             if (u == source) source_radius = max(source_radius, dist);// update the source radius
 #endif

@@ -1,5 +1,5 @@
-NAME : test8
-COMMENT : 8-point problem
+NAME : test10
+COMMENT : 10-point problem
 TYPE : TSP
 DIMENSION : 10
 EDGE_WEIGHT_TYPE : EUC_2D

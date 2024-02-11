@@ -45,6 +45,7 @@ public:
     ArcBoolMap solution;// if the arc is present in the found solution
     int source_radius;  // the source radius
     int graph_radius;   // the graph's radius
+    int graph_diameter; // the graph's diameter
     // todo: use the AdjacencyMatrix class
     map<DNode, map<DNode, Arc>> arc_map;// graph's adjacency matrix
     DNodeIntMap node_activation;        // node activation time
