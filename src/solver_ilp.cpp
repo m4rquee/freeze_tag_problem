@@ -15,30 +15,30 @@ class LocalSearchCB : public GRBCallback {
 
     Digraph::ArcMap<GRBVar> &x_e;
     Digraph::NodeMap<GRBVar> &h_v;
-    GRBVar &height;
+    GRBVar &depth;
 
     ArcBoolMap arc_value;
-    DNodeValueMap node_height;
+    DNodeValueMap node_depth;
     DNodeIntMap node_degree;
 
     double (GRBCallback::*solution_value)(GRBVar) = nullptr;
     void (LocalSearchCB::*set_solution)(GRBVar, double) = nullptr;
 
-    typedef pair<int, int> h_d_pair;
-    typedef pair<h_d_pair, DNode> h_d_triple;
-    typedef pair<int, DNode> h_pair;
+    typedef pair<int, int> ii_pair;         // int, int pair
+    typedef pair<ii_pair, DNode> iin_triple;// int, int, node triple
+    typedef pair<int, DNode> in_pair;       // int, node pair
 
-    vector<h_pair> node_height_heap;     // max heap ordered by nodes height
-    vector<h_d_triple> available_fathers;// min heap ordered by nodes height and then their degree
+    vector<in_pair> node_depth_heap;     // max heap ordered by node's depth
+    vector<iin_triple> available_fathers;// min heap ordered by node's depth and then their degree
 
 public:
-    LocalSearchCB(Problem_Instance &_P, Digraph::ArcMap<GRBVar> &_x_e, Digraph::NodeMap<GRBVar> &_h_v, GRBVar &_height)
-        : P(_P), x_e(_x_e), h_v(_h_v), height(_height), arc_value(P.g), node_height(P.g), node_degree(P.g),
-          node_height_heap(P.nnodes - 1), available_fathers(P.nnodes - 1) {
+    LocalSearchCB(Problem_Instance &_P, Digraph::ArcMap<GRBVar> &_x_e, Digraph::NodeMap<GRBVar> &_h_v, GRBVar &_depth)
+        : P(_P), x_e(_x_e), h_v(_h_v), depth(_depth), arc_value(P.g), node_depth(P.g), node_degree(P.g),
+          node_depth_heap(P.nnodes - 1), available_fathers(P.nnodes - 1) {
         for (ArcIt e(P.g); e != INVALID; ++e)// starts all arcs values
             arc_value[e] = P.solution[e];
-        for (DNodeIt v(P.g); v != INVALID; ++v)// starts all nodes height
-            node_height[v] = P.node_activation[v];
+        for (DNodeIt v(P.g); v != INVALID; ++v)// starts all node's depth
+            node_depth[v] = P.node_activation[v];
     }
 
     double init() {
@@ -62,29 +62,29 @@ protected:
         if (child == new_father || father == new_father) return INVALID;
 
         DNode grandfather = get_father(father);
-        double new_father_h = node_height[new_father];
+        double new_father_h = node_depth[new_father];
         if (grandfather != P.source &&// reached the root and so moving the father will disconnect the tree
-            new_father_h + P.weight[P.arc_map[new_father][father]] < node_height[father])
+            new_father_h + P.weight[P.arc_map[new_father][father]] < node_depth[father])
             return get_shallowest_ancestor(grandfather, father, new_father);// can keep going up
-        if (new_father_h + P.weight[P.arc_map[new_father][child]] < node_height[child])
+        if (new_father_h + P.weight[P.arc_map[new_father][child]] < node_depth[child])
             return child;// found the shallowest ancestor that makes an improving swap
         return INVALID;  // there is no improving swap
     }
 
-    void calc_height(DNode &v, double v_height) {
+    void calc_depth(DNode &v, double v_depth) {
         for (OutArcIt e(P.g, v); e != INVALID; ++e) {
             (this->*set_solution)(x_e[e], arc_value[e]);
             auto rev = findArc(P.g, P.g.target(e), P.g.source(e));
             (this->*set_solution)(x_e[rev], false);
             if (arc_value[e]) {
                 auto child = P.g.target(e);
-                calc_height(child, node_height[child] = v_height + P.weight[e]);
+                calc_depth(child, node_depth[child] = v_depth + P.weight[e]);
             }
         }
     }
 
     void heap_init() {
-        node_height_heap.clear();
+        node_depth_heap.clear();
         available_fathers.clear();
         for (DNodeIt v(P.g); v != INVALID; ++v) {
             if (v == P.source) {
@@ -93,11 +93,11 @@ protected:
             }
             node_degree[v] = 0;
             for (OutArcIt e(P.g, v); e != INVALID; ++e) node_degree[v] += arc_value[e];
-            node_height_heap.push_back(h_pair(node_height[v], v));
+            node_depth_heap.emplace_back(node_depth[v], v);
             if (node_degree[v] == 2) continue;// cannot receive new children
-            available_fathers.push_back(h_d_triple(h_d_pair(-node_height[v], -node_degree[v]), v));
+            available_fathers.emplace_back(ii_pair(-node_depth[v], -node_degree[v]), v);
         }
-        make_heap(node_height_heap.begin(), node_height_heap.end());
+        make_heap(node_depth_heap.begin(), node_depth_heap.end());
         make_heap(available_fathers.begin(), available_fathers.end());
     }
 
@@ -108,38 +108,38 @@ protected:
             set_solution = &LocalSearchCB::setSolution;
             for (ArcIt e(P.g); e != INVALID; ++e)// saves all arcs values
                 arc_value[e] = (this->*solution_value)(x_e[e]) >= 1 - MY_EPS;
-            for (DNodeIt v(P.g); v != INVALID; ++v)// saves all nodes height
-                node_height[v] = (this->*solution_value)(h_v[v]);
+            for (DNodeIt v(P.g); v != INVALID; ++v)// saves all node's depth
+                node_depth[v] = (this->*solution_value)(h_v[v]);
         } else if (where == GRB_CB_START)
             set_solution = &LocalSearchCB::setSolutionStart;
         else
-            return;// this code do not take advantage of the other options
+            return;// this callback does not take advantage of the other options
 
         heap_init();
         bool found_new_sol = false;
         while (!available_fathers.empty()) {
-            h_d_triple popped_triple = available_fathers.front();
+            iin_triple popped_triple = available_fathers.front();
             DNode &new_father = popped_triple.second;
             pop_heap(available_fathers.begin(), available_fathers.end());// moves the triple to the end
             available_fathers.pop_back();                                // deletes the triple from the heap
 
             // Check if it can make a deep node child of the candidate father: -----------------------------------------
-            h_pair popped_pair;
+            in_pair popped_pair;
             DNode shallowest_ancestor = INVALID, child;
             do {
-                if (node_height_heap.empty())
+                if (node_depth_heap.empty())
                     break;// cannot make a node child of this new father while improving the cost
-                popped_pair = node_height_heap.front();
+                popped_pair = node_depth_heap.front();
                 child = shallowest_ancestor = popped_pair.second;
-                pop_heap(node_height_heap.begin(), node_height_heap.end());
-                node_height_heap.pop_back();
+                pop_heap(node_depth_heap.begin(), node_depth_heap.end());
+                node_depth_heap.pop_back();
                 shallowest_ancestor = get_shallowest_ancestor(get_father(child), child, new_father);
             } while (shallowest_ancestor == INVALID);
 
             if (shallowest_ancestor == INVALID) continue;// could not find an improving swap with this candidate father
             found_new_sol = true;
 
-            // Make shallowest_ancestor child of the new_father: -------------------------------------------------------
+            // Make the shallowest_ancestor child of the new_father: ---------------------------------------------------
             Arc rev;
             for (InArcIt e(P.g, shallowest_ancestor); e != INVALID; ++e)
                 if (arc_value[e]) {// remove the arc to the shallowest_ancestor from its old father
@@ -154,18 +154,18 @@ protected:
             rev = findArc(P.g, P.g.target(new_arc), P.g.source(new_arc));
             (this->*set_solution)(x_e[rev], false);
 
-            node_height[shallowest_ancestor] = node_height[new_father] + P.weight[new_arc];
-            calc_height(shallowest_ancestor, node_height[shallowest_ancestor]);// update the whole subtree
+            node_depth[shallowest_ancestor] = node_depth[new_father] + P.weight[new_arc];
+            calc_depth(shallowest_ancestor, node_depth[shallowest_ancestor]);// update the whole subtree
             heap_init();
         }
 
         // Has found an improving solution and so informs it:
         if (found_new_sol) {
             auto new_sol_h = 0.0;
-            for (DNodeIt v(P.g); v != INVALID; ++v) new_sol_h = max(new_sol_h, node_height[v]);
+            for (DNodeIt v(P.g); v != INVALID; ++v) new_sol_h = max(new_sol_h, node_depth[v]);
             if (new_sol_h < P.solution_makespan) {// copy the solution if its better:
                 for (ArcIt e(P.g); e != INVALID; ++e) P.solution[e] = arc_value[e];
-                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_activation[v] = (int) node_height[v];
+                for (DNodeIt v(P.g); v != INVALID; ++v) P.node_activation[v] = (int) node_depth[v];
                 cout << "\n→ Found a solution with local search of height " << MY_EPS * new_sol_h << " over "
                      << MY_EPS * P.solution_makespan;
                 P.solution_makespan = new_sol_h;
@@ -234,7 +234,7 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
 bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     P.start_counter();
 
-    // Calculates the best known objective bounds:
+    // Calculates the best known objective bounds: -------------------------------
 #ifdef BDHST
     double minimum_depth = ceil(log((max_degree - 2.0) / max_degree * (P.nnodes - 1) + 1) / log(max_degree - 1));
     LB = max(LB / MY_EPS, (double) P.graph_radius);
@@ -250,7 +250,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     improved |= greedy_UB < UB;
     UB = min(UB, greedy_UB);
 
-    // Gurobi ILP problem setup:
+    // Gurobi ILP problem setup: -------------------------------------------------
     auto *env = new GRBEnv();
     env->set(GRB_IntParam_Seed, seed);
     env->set(GRB_DoubleParam_TimeLimit, P.time_limit);
@@ -270,16 +270,16 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_DoubleParam_Heuristics, 0.25);*/
 
     // ILP problem variables: ----------------------------------------------------
-    Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the tree
-    Digraph::NodeMap<GRBVar> h_v(P.g);// height of node v
-    GRBVar height;                    // tree's height
+    Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the solution tree
+    Digraph::NodeMap<GRBVar> d_v(P.g);// depth of node v
+    GRBVar depth;                     // the solution tree depth
 #ifdef BDHST
     Digraph::NodeMap<GRBVar> r_v(P.g);// if node v is the root
 #endif
 
     // Callback setup: -----------------------------------------------------------
 #ifndef BDHST
-    LocalSearchCB cb(P, x_e, h_v, height);
+    LocalSearchCB cb(P, x_e, d_v, depth);
     model.setCallback(&cb);
     UB = min(UB, cb.init());// try to improve the initial solution with local search
 #endif
@@ -291,8 +291,8 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_DoubleParam_Cutoff, cutoff);// set the best know UB
 
     // ILP problem variables startup: --------------------------------------------
-    height = model.addVar(LB, UB, 1.0, GRB_INTEGER, "height");
-    height.set(GRB_DoubleAttr_Start, P.solution_makespan);
+    depth = model.addVar(LB, UB, 1.0, GRB_INTEGER, "depth");
+    depth.set(GRB_DoubleAttr_Start, P.solution_makespan);
 
     for (ArcIt e(P.g); e != INVALID; ++e) {
         char name[100];
@@ -302,25 +302,25 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     }
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         char name[100];
-        sprintf(name, "h_%s", P.vname[v].c_str());
-        h_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
-        h_v[v].set(GRB_DoubleAttr_Start, P.node_activation[v]);
+        sprintf(name, "d_%s", P.vname[v].c_str());
+        d_v[v] = model.addVar(0.0, UB, 0.0, GRB_INTEGER, name);
+        d_v[v].set(GRB_DoubleAttr_Start, P.node_activation[v]);
 #ifdef BDHST
-        sprintf(name, "s_%s", P.vname[v].c_str());
+        sprintf(name, "r_%s", P.vname[v].c_str());
         r_v[v] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
 #endif
     }
-    model.update();// run update to use model inserted variables
+    model.update();// needed before using the model inserted variables
 
     // ILP problem restrictions: -------------------------------------------------
     cout << "Adding the model restrictions:" << endl;
 
-    // A node height is at least the source distance to it:
+    // A node depth is at least the source distance to it:
     int constrCount = 0;
-    if (P.source != INVALID) {
+    if (P.source != INVALID) {// additional cutting planes
         for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++)
-            if (v != P.source) model.addConstr(h_v[v] >= P.weight[P.arc_map[P.source][v]]);
-        cout << "-> a node height is at least the source distance to it - " << constrCount - 1 << " constrs" << endl;
+            if (v != P.source) model.addConstr(d_v[v] >= P.weight[P.arc_map[P.source][v]]);
+        cout << "-> a node depth is at least the source distance to it - " << constrCount - 1 << " constrs" << endl;
     }
 
     // There is only one root:
@@ -376,20 +376,20 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     cout << "-> the number of edges is n-1 for any tree - " << 1 << " constrs" << endl;
 
     if (P.source != INVALID) {
-        model.addConstr(h_v[P.source] == 0);
+        model.addConstr(d_v[P.source] == 0);
         constrCount = 1;
     }
 #ifdef BDHST
     else {
         constrCount = 0;
-        for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(h_v[v] <= UB * (1 - r_v[v]));
+        for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(d_v[v] <= UB * (1 - r_v[v]));
     }
 #endif
-    cout << "-> the root is at height zero - " << constrCount << " constrs" << endl;
+    cout << "-> the root is at depth zero - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
-    for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(height >= h_v[v]);
-    cout << "-> the tree height is the maximum of each of its node's height - " << constrCount << " constrs" << endl;
+    for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(depth >= d_v[v]);
+    cout << "-> the tree depth is the maximum of each of its node's depth - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
@@ -400,18 +400,18 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
                     model.addConstr(x_e[e] == 0);
                     continue;
                 }
-                model.addConstr(h_v[v] >= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (x_e[e] - 1));
+                model.addConstr(d_v[v] >= d_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (x_e[e] - 1));
                 if (P.nnodes > 500) continue;// reduce the model size for big instances
                 constrCount++;
-                model.addConstr(h_v[v] <= h_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (1 - x_e[e]));
+                model.addConstr(d_v[v] <= d_v[P.g.source(e)] + P.weight[e] + (P.weight[e] + UB) * (1 - x_e[e]));
             }
-    cout << "-> a node height is its parents height plus the edge to it - " << constrCount << " constrs" << endl;
+    cout << "-> a node depth is its parents depth plus the edge to it - " << constrCount << " constrs" << endl;
 
     constrCount = 0;
-    for (DNodeIt u(P.g); u != INVALID; ++u)
+    for (DNodeIt u(P.g); u != INVALID; ++u)// additional cutting planes
         for (OutArcIt e(P.g, u); e != INVALID; ++e) {
             DNode v = P.g.target(e);
-            if (Digraph::id(u) < Digraph::id(v)) {
+            if (Digraph::id(u) < Digraph::id(v)) {// avoid adding duplicates
                 constrCount++;
                 model.addConstr(x_e[e] + x_e[findArc(P.g, v, u)] <= 1);
             }
@@ -420,8 +420,6 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     // ILP solving: --------------------------------------------------------------
     model.write("gurobi_model.lp");
-    ofstream out("gurobi_model.lp", ios::out);
-    out.close();
     model.optimize();// trys to solve optimally within the time limit
     P.stop_counter();
 
@@ -430,19 +428,17 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     if (!improved) return improved;
 
     // A better solution was found:
-    cout << endl << "Nodes height: ";
-    UB = 0;
+    cout << endl << "Nodes depth: ";
+    UB = ceil(depth.get(GRB_DoubleAttr_X)) * MY_EPS;
     for (DNodeIt v(P.g); v != INVALID; ++v) {
-        int node_height = ceil(h_v[v].get(GRB_DoubleAttr_X));
-        P.node_activation[v] = node_height;
-        cout << P.vname[v].c_str() << '-' << node_height * MY_EPS << ";";
+        int node_depth = ceil(d_v[v].get(GRB_DoubleAttr_X));
+        P.node_activation[v] = node_depth;
+        cout << P.vname[v].c_str() << '-' << node_depth * MY_EPS << ";";
 #ifdef BDHST
         if (r_v[v].get(GRB_DoubleAttr_X) >= 1 - MY_EPS) P.source = v;
 #endif
-        UB = max(UB, (double) node_height);
     }
 
-    UB *= MY_EPS;
     if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL)// solved optimally
         LB = UB;
 
@@ -456,6 +452,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
         else if (!P.original[e])
             to_remove.push_back(e);
     }
+    // todo: use lemon's graph windows
     for (auto &e: to_remove) P.g.erase(e);// remove non-original and non-used arcs
     cout << endl;
     cout << "New LB: " << LB << endl;
@@ -500,7 +497,8 @@ int main(int argc, char *argv[]) {
             char msg[100];
             sprintf(msg, " Gap of %.2f%%.", 100 * (UB - LB) / UB);
             P.view_solution(LB, UB, msg, only_active_edges);
-        }
+        } else
+            cout << "No solution found." << endl;
     } catch (std::exception &e) {
         cout << "UB cost: " << UB << endl;
         cerr << "\nException: " << e.what() << endl;
