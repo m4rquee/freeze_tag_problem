@@ -53,3 +53,9 @@ add_executable(ftp_solver_spt src/solver_ilp_spt.cpp src/problem_utils.cpp)
 target_link_libraries(ftp_solver_spt m pthread)
 target_link_libraries(ftp_solver_spt graph_utils)
 target_link_libraries(ftp_solver_spt gurobi_c++ gurobi110)
+
+# Target executable and linking (Freeze-Tag Problem with Flow formulation):
+add_executable(ftp_solver_flow src/solver_ilp_flow.cpp src/problem_utils.cpp)
+target_link_libraries(ftp_solver_flow m pthread)
+target_link_libraries(ftp_solver_flow graph_utils)
+target_link_libraries(ftp_solver_flow gurobi_c++ gurobi110)
