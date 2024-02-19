@@ -33,7 +33,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
     model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
     model.set(GRB_DoubleParam_Heuristics, 0.25);*/
-    model.set(GRB_IntParam_Threads, 1);
+    model.set(GRB_IntParam_Threads, 4);
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g);              // if arc e is present in the solution tree

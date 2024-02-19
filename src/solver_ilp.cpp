@@ -268,7 +268,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
     model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
     model.set(GRB_DoubleParam_Heuristics, 0.25);*/
-    model.set(GRB_IntParam_Threads, 1);
+    model.set(GRB_IntParam_Threads, 4);
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> x_e(P.g); // if arc e is present in the solution tree
@@ -371,6 +371,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
          << " constrs" << endl;
 #endif
 
+    // The number of edges is n-1 for any tree:
     GRBLinExpr arc_sum_expr;
     for (ArcIt e(P.g); e != INVALID; ++e) arc_sum_expr += x_e[e];
     model.addConstr(arc_sum_expr == P.nnodes - 1);
@@ -388,9 +389,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 #endif
     cout << "-> the root is at depth zero - " << constrCount << " constrs" << endl;
 
+    // The depth of the tree is the maximum of the depth of each of its nodes:
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) model.addConstr(depth >= d_v[v]);
-    cout << "-> the tree depth is the maximum of each of its node's depth - " << constrCount << " constrs" << endl;
+    cout << "-> the depth of the tree is the maximum of the depth of each of its nodes: - " << constrCount << " constrs"
+         << endl;
 
     constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v)
@@ -408,6 +411,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
             }
     cout << "-> a node depth is its parents depth plus the edge to it - " << constrCount << " constrs" << endl;
 
+    // Only one of a parallel arc pair is allowed:
     constrCount = 0;
     for (DNodeIt u(P.g); u != INVALID; ++u)// additional cutting planes
         for (OutArcIt e(P.g, u); e != INVALID; ++e) {
