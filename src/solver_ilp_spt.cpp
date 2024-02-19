@@ -33,7 +33,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
     model.set(GRB_IntParam_Cuts, GRB_CUTS_AGGRESSIVE);
     model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_AGGRESSIVE);
     model.set(GRB_DoubleParam_Heuristics, 0.25);*/
-    model.set(GRB_IntParam_Threads, 1);
+    model.set(GRB_IntParam_Threads, 4);
 
     // ILP problem variables: ----------------------------------------------------
     Digraph::ArcMap<GRBVar> y_e(P.g);              // if arc e is present in the solution tree
@@ -69,54 +69,63 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
     // ILP problem restrictions: -------------------------------------------------
     cout << "Adding the model restrictions:" << endl;
 
-    // Type 1:
+    // The number of nodes in a subtree rooted at some node equals the number of nodes in each subtree rooted at its
+    // children plus one:
     int constrCount = 0;
     for (DNodeIt v(P.g); v != INVALID; ++v) {
         if (v == P.source) continue;
-        GRBLinExpr out_degree_expr, in_degree_expr;
-        for (OutArcIt e(P.g, v); e != INVALID; ++e) out_degree_expr += x_e[e];
-        for (InArcIt e(P.g, v); e != INVALID; ++e) in_degree_expr += x_e[e];
+        GRBLinExpr out_expr, in_expr;
+        for (OutArcIt e(P.g, v); e != INVALID; ++e) out_expr += x_e[e];
+        for (InArcIt e(P.g, v); e != INVALID; ++e) in_expr += x_e[e];
         // The in-degree is one and the out-degree is at most two for each internal node:
-        model.addConstr(out_degree_expr + 1 == in_degree_expr);
+        model.addConstr(out_expr + 1 == in_expr);
         constrCount++;
     }
-    cout << "-> Type 1 - " << constrCount << " constrs" << endl;
+    cout << "-> the number of nodes in a subtree rooted at some node equals the number of nodes in each subtree rooted "
+            "at its children plus one - "
+         << constrCount << " constrs" << endl;
 
-    // Type 2:
-    GRBLinExpr out_degree_expr;
-    for (OutArcIt e(P.g, P.source); e != INVALID; ++e) out_degree_expr += x_e[e];
-    model.addConstr(out_degree_expr == P.nnodes - 1);
-    cout << "-> Type 2 - " << constrCount << " constrs" << endl;
+    // Every node is in the subtree rooted at the source:
+    GRBLinExpr root_out_expr;
+    for (OutArcIt e(P.g, P.source); e != INVALID; ++e) root_out_expr += x_e[e];
+    model.addConstr(root_out_expr == P.nnodes - 1);
+    cout << "-> every node is in the subtree rooted at the source: - " << 1 << " constrs" << endl;
 
-    // Type 3:
+    // Only active arcs can have subtree rooted at its head:
     constrCount = 0;
     for (ArcIt e(P.g); e != INVALID; ++e, constrCount += 2) {
         model.addConstr(x_e[e] >= y_e[e]);
         model.addConstr(x_e[e] <= (P.nnodes - 1) * y_e[e]);
     }
-    cout << "-> Type 3 - " << constrCount << " constrs" << endl;
+    cout << "-> only active arcs can have subtree rooted at its head - " << constrCount << " constrs" << endl;
 
-    // Type 4 and 5:
+    // The out-degree of each node is at most two if it is internal, otherwise, it's at most one:
     constrCount = 0;
-    GRBLinExpr arc_sum_expr;
     for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) {
         GRBLinExpr out_degree_expr;
         for (OutArcIt e(P.g, v); e != INVALID; ++e) out_degree_expr += y_e[e];
         model.addConstr(out_degree_expr <= 1 + (v != P.source));
-        arc_sum_expr += out_degree_expr;
     }
-    model.addConstr(arc_sum_expr == P.nnodes - 1);
-    cout << "-> Type 4 and 5 - " << constrCount + 1 << " constrs" << endl;
+    cout << "-> The out-degree of each node is at most two if it is internal, otherwise, it's at most one "
+         << constrCount << " constrs" << endl;
 
-    // Type 6:
+    // The number of edges is n-1 for any tree:
+    GRBLinExpr arc_sum_expr;
+    for (ArcIt e(P.g); e != INVALID; ++e) arc_sum_expr += x_e[e];
+    model.addConstr(arc_sum_expr == P.nnodes - 1);
+    cout << "-> the number of edges is n-1 for any tree - " << 1 << " constrs" << endl;
+
+    // If edge ij is present, then it is on the path from the root to j:
     constrCount = 0;
     for (ArcIt e(P.g); e != INVALID; ++e, constrCount++) {
-        auto u = P.g.source(e), v = P.g.target(e);
+        auto v = P.g.target(e);
         model.addConstr(v_e_k[e][v] == y_e[e]);
     }
-    cout << "-> Type 6 - " << constrCount << " constrs" << endl;
+    cout << "-> if edge ij is present, then it is on the path from the root to j - " << constrCount << " constrs"
+         << endl;
 
-    // Type 7:
+    // The number of root-to-node paths traversing an edge equals the number of nodes in the subtree rooted in said
+    // arc's head:
     constrCount = 0;
     for (ArcIt e(P.g); e != INVALID; ++e, constrCount++) {
         GRBLinExpr arc_usage_expr;
@@ -126,9 +135,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
         }
         model.addConstr(arc_usage_expr == x_e[e]);
     }
-    cout << "-> Type 7 - " << constrCount << " constrs" << endl;
+    cout << "-> the number of root-to-node paths traversing an edge equals the number of nodes in the subtree rooted "
+            "in said arc's head - "
+         << constrCount << " constrs" << endl;
 
-    // Type 8:
+    // The number of root-to-node paths going through a node does not change if that node is not the target:
     constrCount = 0;
     for (DNodeIt k(P.g); k != INVALID; ++k) {
         if (k == P.source) continue;
@@ -143,21 +154,26 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
             constrCount++;
         }
     }
-    cout << "-> Type 8 - " << constrCount << " constrs" << endl;
+    cout << "-> the number of root-to-node paths going through a node does not change if that node is not the target - "
+         << constrCount << " constrs" << endl;
 
-    // Type 9:
+    // The depth of the tree is the maximum of the depth of each of its nodes:
     constrCount = 0;
     for (DNodeIt k(P.g); k != INVALID; ++k) {
         if (k == P.source) continue;
 
         GRBLinExpr path_cost_expr;
-        for (ArcIt e(P.g); e != INVALID; ++e) path_cost_expr += P.weight[e] * v_e_k[e][k];
+        for (ArcIt e(P.g); e != INVALID; ++e)
+            // The weight of the path from root-to-k is the sum of the arc weights of the arcs used to reach k:
+            path_cost_expr += P.weight[e] * v_e_k[e][k];
 
         model.addConstr(depth >= path_cost_expr);
         constrCount++;
     }
-    cout << "-> Type 9 - " << constrCount << " constrs" << endl;
+    cout << "-> the depth of the tree is the maximum of the depth of each of its nodes: - " << constrCount << " constrs"
+         << endl;
 
+    // Only one of a parallel arc pair is allowed:
     constrCount = 0;
     for (DNodeIt u(P.g); u != INVALID; ++u)// additional cutting planes
         for (OutArcIt e(P.g, u); e != INVALID; ++e) {
