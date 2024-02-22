@@ -1,4 +1,3 @@
-#include "gurobi_c++.h"
 #include "problem_utils.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -18,6 +17,10 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
     auto auxUB = P.graph_diameter * minimum_depth;
     bool improved = auxUB < UB / MY_EPS;
     UB = max(LB, min(UB / MY_EPS, auxUB));
+    // Construct an initial greedy solution:
+    auto greedy_UB = greedy_solution(P);
+    improved |= greedy_UB < UB;
+    UB = min(UB, greedy_UB);
 
     // Gurobi ILP problem setup: -------------------------------------------------
     auto *env = new GRBEnv();
@@ -41,6 +44,11 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
     Digraph::ArcMap<map<DNode, GRBVar>> v_e_k(P.g);// if e is on the path from root to k
     GRBVar depth;                                  // the solution tree depth
 
+    // Callback setup: -----------------------------------------------------------
+    LocalSearchCB cb(P, y_e);
+    model.setCallback(&cb);
+    UB = min(UB, cb.init());// try to improve the initial solution with local search
+
     // Cutoff and bounds setup: --------------------------------------------------
     cout << "Set parameter LB to value " << LB * MY_EPS << endl;
     cout << "Set parameter UB to value " << UB * MY_EPS << endl;
@@ -55,6 +63,7 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
         auto u_name = P.vname[P.g.source(e)].c_str(), v_name = P.vname[P.g.target(e)].c_str();
         sprintf(name, "y_(%s,%s)", u_name, v_name);
         y_e[e] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
+        y_e[e].set(GRB_DoubleAttr_Start, P.solution[e]);
 
         sprintf(name, "x_(%s,%s)", u_name, v_name);
         x_e[e] = model.addVar(0.0, P.nnodes, 0.0, GRB_INTEGER, name);
