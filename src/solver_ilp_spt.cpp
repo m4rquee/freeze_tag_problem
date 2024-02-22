@@ -110,17 +110,17 @@ bool solve(Problem_Instance &P, double &LB, double &UB) {
 
     // The out-degree of each node is at most two if it is internal, otherwise, it's at most one:
     constrCount = 0;
+    GRBLinExpr arc_sum_expr;
     for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++) {
         GRBLinExpr out_degree_expr;
         for (OutArcIt e(P.g, v); e != INVALID; ++e) out_degree_expr += y_e[e];
         model.addConstr(out_degree_expr <= 1 + (v != P.source));
+        arc_sum_expr += out_degree_expr;
     }
     cout << "-> The out-degree of each node is at most two if it is internal, otherwise, it's at most one "
          << constrCount << " constrs" << endl;
 
     // The number of edges is n-1 for any tree:
-    GRBLinExpr arc_sum_expr;
-    for (ArcIt e(P.g); e != INVALID; ++e) arc_sum_expr += x_e[e];
     model.addConstr(arc_sum_expr == P.nnodes - 1);
     cout << "-> the number of edges is n-1 for any tree - " << 1 << " constrs" << endl;
 
