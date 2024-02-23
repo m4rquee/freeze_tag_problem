@@ -95,11 +95,26 @@ bool solve(Problem_Instance &P, double &LB, double &UB, int max_degree = 3) {
 
     // A node depth is at least the source distance to it:
     int constrCount = 0;
-    if (P.source != INVALID) {// additional cutting planes
+    /*if (P.source != INVALID) {// additional cutting planes
         for (DNodeIt v(P.g); v != INVALID; ++v, constrCount++)
             if (v != P.source) model.addConstr(d_v[v] >= P.weight[P.arc_map[P.source][v]]);
         cout << "-> a node depth is at least the source distance to it - " << constrCount - 1 << " constrs" << endl;
-    }
+    }*/
+
+    //  A node depth is at least the source distance to its father plus the distance from its father to it:
+    constrCount = 0;
+    if (P.source != INVALID)// additional cutting planes
+        for (DNodeIt u(P.g); u != INVALID; ++u)
+            if (u != P.source)
+                for (DNodeIt v(P.g); v != INVALID; ++v)
+                    if (v != u && v != P.source) {
+                        auto su = P.arc_map[P.source][u], sv = P.arc_map[P.source][v], uv = P.arc_map[u][v];
+                        model.addConstr(d_v[v] >=
+                                        x_e[uv] * (P.weight[su] + P.weight[uv]) + (1 - x_e[uv]) * P.weight[sv]);
+                        constrCount++;
+                    }
+    cout << "-> a node depth is at least the source distance to its father plus the distance from its father to it - "
+         << constrCount << " constrs" << endl;
 
     // There is only one root:
 #ifdef BDHST
