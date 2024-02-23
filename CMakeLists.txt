@@ -59,3 +59,9 @@ add_executable(ftp_solver_flow src/solver_ilp_flow.cpp src/problem_utils.cpp)
 target_link_libraries(ftp_solver_flow m pthread)
 target_link_libraries(ftp_solver_flow graph_utils)
 target_link_libraries(ftp_solver_flow gurobi_c++ gurobi110)
+
+# Target executable and linking (Freeze-Tag Problem with Normal formulation + leaves restriction):
+add_executable(ftp_solver_leaf src/solver_ilp_leaf.cpp src/problem_utils.cpp)
+target_link_libraries(ftp_solver_leaf m pthread)
+target_link_libraries(ftp_solver_leaf graph_utils)
+target_link_libraries(ftp_solver_leaf gurobi_c++ gurobi110)
