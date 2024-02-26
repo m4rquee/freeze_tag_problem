@@ -1,7 +1,7 @@
 #include "problem_utils.hpp"
 
 Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool calc_clojure, bool tsplib)
-    : time_limit(time_limit), vname(g), weight(g), px(g), py(g), original(g), solution(g), node_activation(g) {
+    : time_limit(time_limit), vname(g), weight(g), px(g), py(g), original(g), solution(g, false), node_activation(g) {
     read_instance(filename, tsplib);
 
     // Initialize the attributes:
@@ -261,7 +261,7 @@ DNode LocalSearchCB::get_shallowest_ancestor(const DNode &father, const DNode &c
 }
 
 void LocalSearchCB::calc_depth(DNode &v, double v_depth) {
-    for (OutArcIt e(P.g, v); e != INVALID; ++e) {
+    for (OutArcIt e(P.g, v); e != INVALID; ++e) { // todo: bug with the online edge update
         (this->*set_solution)(x_e[e], arc_value[e]);
         auto rev = findArc(P.g, P.g.target(e), P.g.source(e));
         (this->*set_solution)(x_e[rev], false);
@@ -283,7 +283,7 @@ void LocalSearchCB::heap_init() {
         node_degree[v] = 0;
         for (OutArcIt e(P.g, v); e != INVALID; ++e) node_degree[v] += arc_value[e];
         node_depth_heap.emplace_back(node_depth[v], v);
-        if (node_degree[v] == 2) continue;// cannot receive new children
+        if (node_degree[v] >= 2) continue;// cannot receive new children
         available_fathers.emplace_back(ii_pair(-node_depth[v], -node_degree[v]), v);
     }
     make_heap(node_depth_heap.begin(), node_depth_heap.end());

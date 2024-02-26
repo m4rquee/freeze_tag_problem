@@ -65,3 +65,9 @@ add_executable(ftp_solver_leaf src/solver_ilp_leaf.cpp src/problem_utils.cpp)
 target_link_libraries(ftp_solver_leaf m pthread)
 target_link_libraries(ftp_solver_leaf graph_utils)
 target_link_libraries(ftp_solver_leaf gurobi_c++ gurobi110)
+
+# Target executable and linking (Freeze-Tag Problem with Normal formulation + Lagrangian relaxation):
+add_executable(ftp_solver_lagran src/solver_ilp_lagran.cpp src/problem_utils.cpp)
+target_link_libraries(ftp_solver_lagran m pthread)
+target_link_libraries(ftp_solver_lagran graph_utils)
+target_link_libraries(ftp_solver_lagran gurobi_c++ gurobi110)
