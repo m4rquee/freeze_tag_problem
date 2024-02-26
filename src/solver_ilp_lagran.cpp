@@ -12,10 +12,10 @@
 int seed = 42;// seed to the random number generator
 
 double lagrangian_relaxation(const Problem_Instance &P, GRBModel &model, const Digraph::ArcMap<GRBVar> &x_e,
-                             const GRBVar &depth, double &Z_LB_k, double &Z_UB, double &min_delta) {
+                             const GRBVar &depth, double &Z_LB, double &Z_UB, double &min_delta) {
     // The out-degree constraints will be dualized: ----------------------------------
     auto lambda = new double[P.nnodes], g_k = new double[P.nnodes];
-    double pi_k = 2.0, g_k_srq_sum = 0.0;
+    double pi_k = 2.0;
 
     // Compute the minimum cost difference between two solutions:
     for (ArcIt e(P.g); e != INVALID; ++e) min_delta = min(min_delta, (double) P.weight[e]);
@@ -23,21 +23,22 @@ double lagrangian_relaxation(const Problem_Instance &P, GRBModel &model, const D
     // Initialize the Lagrangian multipliers lambda:
     for (int i = 0; i < P.nnodes; i++) lambda[i] = 0.0;
 
-    cout << "\n→ Status before subgradient method: LB = " << Z_LB_k << "; UB = " << Z_UB
-         << "; GAP = " << (Z_UB - Z_LB_k) / Z_UB * 100 << "%\n\n";
+    cout << "\n→ Status before subgradient method: LB = " << Z_LB << "; UB = " << Z_UB
+         << "; GAP = " << (Z_UB - Z_LB) / Z_UB * 100 << "%\n\n";
 
+    double Z_LB_k = Z_LB;
     double remaining_time = (1 - TOTAL_FRAC) * P.time_limit;
     int iter;
     for (iter = 0; iter < MAX_ITER; iter++) {
         // Update the objective function based on the current lambda vector: -----
         GRBLinExpr obj_expr = depth;
         int index = 0;
-        for (DNodeIt v(P.g); v != INVALID; ++v) {
-            if (v == P.source) continue;
+        for (DNodeIt v(P.g); v != INVALID; ++v, index++) {
             GRBLinExpr out_degree_expr;
             for (OutArcIt e(P.g, v); e != INVALID; ++e) out_degree_expr += x_e[e];
-            obj_expr += lambda[index] * (out_degree_expr - 2);
-            index++;
+            if (v == P.source) obj_expr += lambda[index] * (out_degree_expr - 1);
+            else
+                obj_expr += lambda[index] * (out_degree_expr - 2);
         }
         model.setObjective(obj_expr);
 
@@ -47,41 +48,37 @@ double lagrangian_relaxation(const Problem_Instance &P, GRBModel &model, const D
         model.set(GRB_DoubleParam_TimeLimit, remaining_time);
         model.optimize();// solve the LLBP
 
-        if (model.get(GRB_IntAttr_Status) != GRB_OPTIMAL) {// could not finish
-            Z_LB_k = max(Z_LB_k, model.get(GRB_DoubleAttr_ObjBound));
-            break;
-        }
+        if (model.get(GRB_IntAttr_Status) != GRB_OPTIMAL) break;// could not finish
 
         Z_LB_k = ceil(depth.get(GRB_DoubleAttr_X));
+        Z_LB = max(Z_LB, Z_LB_k);
         // Z_UB = min(Z_UB, (double) P.solution_makespan);// todo: implement a lagrangian heuristic
 
-        if (abs(Z_LB_k - Z_UB) < min_delta) {
+        if (abs(Z_LB - Z_UB) < min_delta) {
             cout << "\n→ Found an optimal solution of cost = " << Z_UB << "\n\n";
             break;
         }
 
         // Compute the subgradient:
         index = 0;
-        // g_k_srq_sum = 0;
-        for (DNodeIt v(P.g); v != INVALID; ++v) {
-            if (v == P.source) continue;
-            g_k[index] = -2;
+        double g_k_srq_sum = 0;
+        for (DNodeIt v(P.g); v != INVALID; ++v, index++) {
+            g_k[index] = v == P.source ? -1 : -2;
             for (OutArcIt e(P.g, v); e != INVALID; ++e) g_k[index] += x_e[e].get(GRB_DoubleAttr_X);
             g_k_srq_sum += g_k[index] * g_k[index];
-            index++;
         }
 
         // Update the lagrangian multipliers:
         auto alpha_k = pi_k * (Z_UB - Z_LB_k) / g_k_srq_sum;
-        for (int i = 0; i < P.nnodes - 1; i++) lambda[i] = max(0.0, lambda[i] + alpha_k * g_k[i]);
+        for (int i = 0; i < P.nnodes; i++) lambda[i] = max(0.0, lambda[i] + alpha_k * g_k[i]);
 
         pi_k *= 0.9;// decrease the pi value to guarantee convergence
         if (pi_k < MY_EPS) break;
-        cout << "\n→ iter = " << iter + 1 << "; alpha = " << alpha_k << "; LB = " << Z_LB_k << "; UB = " << Z_UB
-             << "; GAP = " << (Z_UB - Z_LB_k) / Z_UB * 100 << "%\n\n";
+        cout << "\n→ iter = " << iter + 1 << "; alpha = " << alpha_k << "; LB = " << Z_LB << "; UB = " << Z_UB
+             << "; GAP = " << (Z_UB - Z_LB) / Z_UB * 100 << "%\n\n";
     }
-    cout << "\n→ Finished after " << iter + 1 << " iterations; LB = " << Z_LB_k << "; UB = " << Z_UB
-         << "; GAP = " << (Z_UB - Z_LB_k) / Z_UB * 100 << "%";
+    cout << "\n→ Finished after " << iter + 1 << " iterations; LB = " << Z_LB << "; UB = " << Z_UB
+         << "; GAP = " << (Z_UB - Z_LB) / Z_UB * 100 << "%";
 
     return remaining_time;
 }
