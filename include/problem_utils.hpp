@@ -54,6 +54,8 @@ public:
     map<DNode, map<DNode, Arc>> arc_map;// graph's adjacency matrix
     DNodeIntMap node_activation;        // node activation time
     int solution_makespan = -1;         // makespan of the found solution
+    bool tsplib;                        // the input follows the tsplib pattern
+    bool complete;                      // the graph will be complete
 };
 
 double greedy_solution(Problem_Instance &P, int max_degree = 3);

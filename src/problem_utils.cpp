@@ -1,7 +1,8 @@
 #include "problem_utils.hpp"
 
 Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool calc_clojure, bool tsplib)
-    : time_limit(time_limit), vname(g), weight(g), px(g), py(g), original(g), solution(g, false), node_activation(g) {
+    : time_limit(time_limit), vname(g), weight(g, MY_INF), px(g), py(g), original(g), solution(g, false),
+      node_activation(g), tsplib(tsplib), complete(calc_clojure) {
     read_instance(filename, tsplib);
 
     // Initialize the attributes:
@@ -173,6 +174,7 @@ void Problem_Instance::view_solution(double LB, double UB, const string &msg, bo
     GA.SetLabel("Scheduling starting from node " + vname[source] + " of makespan " + to_string(UB) +
                 ". LB = " + to_string(LB) + "." + msg);
 #endif
+    MY_GRAPHLIB_PARAMETERS.graphviz_drawing_program = tsplib ? "neato" : "dot";
     GA.View();
 }
 
@@ -252,16 +254,21 @@ DNode LocalSearchCB::get_shallowest_ancestor(const DNode &father, const DNode &c
 
     DNode grandfather = get_father(father);
     double new_father_h = node_depth[new_father];
-    if (grandfather != P.source &&// reached the root and so moving the father will disconnect the tree
-        new_father_h + P.weight[P.arc_map[new_father][father]] < node_depth[father])
-        return get_shallowest_ancestor(grandfather, father, new_father);// can keep going up
-    if (new_father_h + P.weight[P.arc_map[new_father][child]] < node_depth[child])
-        return child;// found the shallowest ancestor that makes an improving swap
-    return INVALID;  // there is no improving swap
+    if (grandfather != P.source) {// reached the root and so moving the father will disconnect the tree
+        auto it = P.arc_map[new_father].find(father);
+        if (it != P.arc_map[new_father].end())// if this arc exists
+            if (new_father_h + P.weight[P.arc_map[new_father][father]] < node_depth[father])
+                return get_shallowest_ancestor(grandfather, father, new_father);// can keep going up
+    }
+    auto it = P.arc_map[new_father].find(child);
+    if (it != P.arc_map[new_father].end())// if this arc exists
+        if (new_father_h + P.weight[P.arc_map[new_father][child]] < node_depth[child])
+            return child;// found the shallowest ancestor that makes an improving swap
+    return INVALID;      // there is no improving swap
 }
 
 void LocalSearchCB::calc_depth(DNode &v, double v_depth) {
-    for (OutArcIt e(P.g, v); e != INVALID; ++e) { // todo: bug with the online edge update
+    for (OutArcIt e(P.g, v); e != INVALID; ++e) {// todo: bug with the online edge update
         (this->*set_solution)(x_e[e], arc_value[e]);
         auto rev = findArc(P.g, P.g.target(e), P.g.source(e));
         (this->*set_solution)(x_e[rev], false);
