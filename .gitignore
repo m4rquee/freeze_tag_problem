@@ -88,3 +88,6 @@ cmake-build-debug
 *.err
 output/
 bin/
+
+# Pycache
+__pycache__/
