@@ -5,8 +5,7 @@ from matplotlib import pyplot as plt
 
 
 def plot_solution(dg, sol_edges, node_coords, node_names, node_colors, edge_color="black", style='-'):
-    n = len(node_names)
-    aux = dg.edge_subgraph(sol_edges).subgraph([int(n) - 1 for n in node_names])
+    aux = dg.edge_subgraph(sol_edges).subgraph(node_names)
     nx.draw(aux, pos=node_coords, node_color=node_colors, edge_color=edge_color, style=style, node_size=5)
 
 

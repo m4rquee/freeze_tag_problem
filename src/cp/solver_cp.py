@@ -1,5 +1,4 @@
 from sys import argv
-from math import ceil
 
 import networkx as nx
 from matplotlib import pyplot as plt
@@ -8,7 +7,7 @@ from ortools.sat.python import cp_model
 from src.cp.reading import read_tsplib_graph
 from src.cp.solvers import solve_ftp, solve_bdhst
 from src.cp.plotting import plot_solution, plot_grid
-from src.cp.utils import l2_norm, normalize, discretize
+from src.cp.utils import trivial_ub, l2_norm, normalize, discretize
 
 EPS = float(argv[1])
 MAX_TIME = int(argv[2])
@@ -17,80 +16,84 @@ delta = 1E-4
 
 # Setup:
 names, coords = read_tsplib_graph()
-coords = normalize(coords, ceil(1.0 / EPS))
+coords, factor = normalize(coords, EPS)
 n = len(names)
-source = n - 1
-
-DG = nx.complete_graph(n, nx.DiGraph)
+source = names[n - 1]
+names_to_i = {name: i for i, name in enumerate(names)}
+DG = nx.complete_graph(names, nx.DiGraph)
 dist = l2_norm(coords, delta)
+UB = trivial_ub(n, dist)
 
-# FTP solving:
-status, solver, depth, d_v, x_e = solve_ftp(names, source, dist, MAX_TIME)
+# Full FTP solving:
+status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, UB)
 
-names_h, coords_h, degrees, source_i = discretize(names, coords, source, EPS)
-n_h = len(names_h)
-dist_h = l2_norm(coords_h, delta)
-status_h, solver_h, depth_h, d_v_h, x_e_h = solve_bdhst(names_h, source_i, dist_h, degrees, MAX_TIME)
+# Discretized BDHST solving:
+names_d, coords_d, degrees_d, source_i = discretize(names, coords, names_to_i[source], EPS)
+n_d = len(names_d)
+dist_d = l2_norm(coords_d, delta)
+UB_d = trivial_ub(n_d, dist_d)
+status_d, model_d, solver_d, depth_d, d_v_d, x_e_d = solve_bdhst(names_d, dist_d, degrees_d, MAX_TIME, UB_d)
 
-if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-    print('Found a feasible solution.')
+status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
+status_d = status_d == cp_model.FEASIBLE or status_d == cp_model.OPTIMAL
+if status and status_d:
+    to_orig = delta / factor
+
+    # Full FTP solution:
+    print('Full FTP solution:')
     depth = solver.Value(depth)
-    print(f'  solution depth: {delta * depth:.2f}')
+    print(f'  solution depth: {to_orig * depth:.2f}')
     print(f'  d_v = (', end='')
     node_colors = []
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
         node_colors.append('cyan' if depth_v == depth else 'gray')
-        print(f'{delta * depth_v:.2f}', end=', ')
-    print(f'{delta * solver.Value(d_v[source])})')
+        print(f'{to_orig * depth_v:.2f}', end=', ')
+    print(f'{to_orig * solver.Value(d_v[-1])})')
     node_colors.append('magenta')
 
     print('  edges: ', end='')
     sol_edges = []
     for u in range(n):
         for v in range(n - 1):
-            if u == v:
-                continue
+            if u == v: continue
             if solver.Value(x_e[u][v]):
                 print(f'{names[u]}-{names[v]}; ', end='')
-                sol_edges.append((u, v))
+                sol_edges.append((names[u], names[v]))
 
-    depth_h = solver_h.Value(depth_h)
-    print(f'\n\n  Higher solution depth: {delta * depth_h:.2f}')
+    # Discretized BDHST solution:
+    print('\n\nDiscretized BDHST solution:')
+    depth_d = solver_d.Value(depth_d)
+    print(f'  solution solution depth: {to_orig * depth_d:.2f}')
     print(f'  d_v = (', end='')
-    node_colors_h = []
-    for v in range(n_h - 1):
-        depth_v = solver_h.Value(d_v_h[v])
-        node_colors_h.append('blue' if depth_v == depth_h else 'black')
-        print(f'{delta * depth_v:.2f}', end=', ')
-    print(f'{delta * solver_h.Value(d_v[source_i])})')
-    node_colors_h.append('red')
+    node_colors_d = []
+    for v in range(n_d - 1):
+        depth_v = solver_d.Value(d_v_d[v])
+        node_colors_d.append('blue' if depth_v == depth_d else 'black')
+        print(f'{to_orig * depth_v:.2f}', end=', ')
+    print(f'{to_orig * solver_d.Value(d_v_d[-1])})')
+    node_colors_d.append('red')
 
     print('  edges: ', end='')
-    sol_edges_h = []
-    for u in range(n_h):
-        for v in range(n_h - 1):
-            if u == v:
-                continue
-            if solver_h.Value(x_e_h[u][v]):
-                print(f'{names_h[u]}-{names_h[v]}; ', end='')
-                sol_edges_h.append((int(names_h[u]) - 1, int(names_h[v]) - 1))
+    sol_edges_d = []
+    for u in range(n_d):
+        for v in range(n_d - 1):
+            if u == v: continue
+            if solver_d.Value(x_e_d[u][v]):
+                print(f'{names_d[u]}-{names_d[v]}; ', end='')
+                sol_edges_d.append((names_d[u], names_d[v]))
 
+    # Solution plotting:
     plt.figure(figsize=(10, 6))
-    plot_solution(DG, sol_edges, coords, names, node_colors, 'red')
-    coords_h = {int(names_h[i]) - 1: v for i, v in enumerate(coords_h)}
-    # names_h = {int(names_h[i]) - 1: v for i, v in enumerate(names_h)}
-    plot_solution(DG, sol_edges_h, coords_h, names_h, node_colors_h, 'green', style='dotted')
+
+    coords_dict = {names[i]: c for i, c in enumerate(coords)}
+    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'red', 'dashed')
+
+    coords_dict_d = {names_d[i]: c for i, c in enumerate(coords_d)}
+    plot_solution(DG, sol_edges_d, coords_dict_d, names_d, node_colors_d, 'green', 'dotted')
 
     plot_grid(EPS)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
 else:
     print('No solution found.')
-
-# Statistics:
-print('\nStatistics')
-print(f'  status   : {solver.StatusName(status)}')
-print(f'  conflicts: {solver.NumConflicts()}')
-print(f'  branches : {solver.NumBranches()}')
-print(f'  wall time: {solver.WallTime()} s')

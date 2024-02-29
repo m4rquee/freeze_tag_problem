@@ -1,8 +1,20 @@
 from functools import cache
-from math import sqrt, floor, ceil
+from math import sqrt, floor, ceil, log2
+
+
+def trivial_ub(n, dist):
+    minimum_depth = ceil(log2(n))
+
+    diameter = float('-inf')
+    for u in range(n):
+        for v in range(n):
+            if u != v:
+                diameter = max(diameter, dist(u, v))
+    return diameter * minimum_depth
 
 
 def l2_norm(coords, delta):
+    @cache
     def aux(u, v):
         d = sqrt((coords[u][0] - coords[v][0]) ** 2 + (coords[u][1] - coords[v][1]) ** 2)
         return floor(d / delta)  # scale up so we can treat rational values as integers
@@ -10,10 +22,11 @@ def l2_norm(coords, delta):
     return aux
 
 
-def normalize(coords, num_cells):
-    xs, ys = zip(*coords)
-    multiplier = num_cells / (max(xs + ys) + 1)
-    return [(multiplier * x, multiplier * y) for x, y in coords]
+def normalize(coords, eps):
+    grid_dim = ceil(1.0 / eps)
+    xs, ys = zip(*coords)  # gather all points x and y coordinates
+    factor = grid_dim / (max(xs + ys) + 1)  # add one to avoid boundary points
+    return [(factor * x, factor * y) for x, y in coords], factor
 
 
 def discretize(names, coords, source, eps):
