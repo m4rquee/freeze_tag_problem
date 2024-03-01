@@ -47,10 +47,10 @@ if status and status_d:
     node_colors = []
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
-        node_colors.append('cyan' if depth_v == depth else 'gray')
+        node_colors.append('cyan' if depth_v == depth else 'black')
         print(f'{to_orig * depth_v:.2f}', end=', ')
     print(f'{to_orig * solver.Value(d_v[-1])})')
-    node_colors.append('magenta')
+    node_colors.append('red')
 
     print('  edges: ', end='')
     sol_edges = []
@@ -69,7 +69,7 @@ if status and status_d:
     node_colors_d = []
     for v in range(n_d - 1):
         depth_v = solver_d.Value(d_v_d[v])
-        node_colors_d.append('blue' if depth_v == depth_d else 'black')
+        node_colors_d.append('cyan' if depth_v == depth_d else 'white')
         print(f'{to_orig * depth_v:.2f}', end=', ')
     print(f'{to_orig * solver_d.Value(d_v_d[-1])})')
     node_colors_d.append('red')
@@ -87,10 +87,10 @@ if status and status_d:
     plt.figure(figsize=(10, 6))
 
     coords_dict = {names[i]: c for i, c in enumerate(coords)}
-    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'red', 'dashed')
+    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'red', style='dashed', node_size=40)
 
     coords_dict_d = {names_d[i]: c for i, c in enumerate(coords_d)}
-    plot_solution(DG, sol_edges_d, coords_dict_d, names_d, node_colors_d, 'green', 'dotted')
+    plot_solution(DG, sol_edges_d, coords_dict_d, names_d, node_colors_d, 'green', style='dotted', node_size=10)
 
     plot_grid(EPS)
     plt.gca().set_aspect('equal', adjustable='box')
