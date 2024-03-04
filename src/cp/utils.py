@@ -25,8 +25,16 @@ def l2_norm(coords, delta):
 def normalize(coords, eps):
     grid_dim = ceil(1.0 / eps)
     xs, ys = zip(*coords)  # gather all points x and y coordinates
+
+    # Stick the bounding box corner to the origin:
+    min_x_coord = min(xs)
+    min_y_coord = min(ys)
+    xs = [-min_x_coord + x for x in xs]
+    ys = [-min_y_coord + y for y in ys]
+
+    # Resize the points to fit in a ceil(1 / eps) x ceil(1 / eps) square:
     factor = grid_dim / (max(xs + ys) + 1)  # add one to avoid boundary points
-    return [(factor * x, factor * y) for x, y in coords], factor
+    return [(factor * x, factor * y) for x, y in zip(xs, ys)], factor
 
 
 def discretize(names, coords, source, eps):
