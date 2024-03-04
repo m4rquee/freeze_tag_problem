@@ -66,4 +66,4 @@ def discretize(names, coords, source, eps):
     disc_coords.append(source_coord)
     degrees.append(source_degree)
     source_i = len(disc_names) - 1
-    return disc_names, disc_coords, degrees, source_i
+    return disc_names, disc_coords, degrees, source_i, grid

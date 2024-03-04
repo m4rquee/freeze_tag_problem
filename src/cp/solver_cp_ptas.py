@@ -23,49 +23,49 @@ source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
 DG = nx.complete_graph(names, nx.DiGraph)
 
-# Discretized BDHST solving:
-names, coords, degrees, source_i = discretize(names, coords, names_to_i[source], EPS)
-n = len(names)
-dist = l2_norm(coords, delta)
-UB = trivial_ub(n, dist)
-hop_depth = min(n - 1, ceil(log2(n)) ** 2)
-status, model, solver, depth, d_v, x_e = solve_bdhst(names, dist, degrees, MAX_TIME, UB, hop_depth)
+# Upper level discretized BDHST solving:
+d_names, d_coords, d_degrees, d_source_i, d_grid = discretize(names, coords, names_to_i[source], EPS)
+d_n = len(d_names)
+d_dist = l2_norm(d_coords, delta)
+d_UB = trivial_ub(d_n, d_dist)
+hop_depth = min(d_n - 1, ceil(log2(d_n)) ** 2)
+d_status, d_model, d_solver, d_depth, d_d_v, d_x_e = solve_bdhst(d_names, d_dist, d_degrees, MAX_TIME, d_UB, hop_depth)
 
-status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
-if status:
-    to_orig = delta / factor
+d_status = d_status == cp_model.FEASIBLE or d_status == cp_model.OPTIMAL
+if not d_status:
+    exit('Could not find any solution to the upper level discretization!')
 
-    # Discretized BDHST solution:
-    print('\n\nDiscretized BDHST solution:')
-    depth = solver.Value(depth)
-    print(f'  number of nodes        : {n}')
-    print(f'  solution solution depth: {to_orig * depth:.2f}')
-    print(f'  d_v = (', end='')
-    node_colors = []
-    for v in range(n - 1):
-        depth_v = solver.Value(d_v[v])
-        node_colors.append('cyan' if depth_v == depth else 'black')
-        print(f'{to_orig * depth_v:.2f}', end=', ')
-    print(f'{to_orig * solver.Value(d_v[-1])})')
-    node_colors.append('red')
+to_orig = delta / factor
 
-    print('  edges: ', end='')
-    sol_edges = []
-    for u in range(n):
-        for v in range(n - 1):
-            if u == v: continue
-            if solver.Value(x_e[u][v]):
-                print(f'{names[u]}-{names[v]}; ', end='')
-                sol_edges.append((names[u], names[v]))
+# Upper level discretized BDHST solution:
+print('\n\nUpper level discretized BDHST solution:')
+d_depth = d_solver.Value(d_depth)
+print(f'  number of nodes        : {d_n}')
+print(f'  solution solution depth: {to_orig * d_depth:.2f}')
+print(f'  d_v = (', end='')
+node_colors = []
+for v in range(d_n - 1):
+    depth_v = d_solver.Value(d_d_v[v])
+    node_colors.append('cyan' if depth_v == d_depth else 'black')
+    print(f'{to_orig * depth_v:.2f}', end=', ')
+print(f'{to_orig * d_solver.Value(d_d_v[-1])})')
+node_colors.append('red')
 
-    # Solution plotting:
-    plt.figure(figsize=(10, 6))
+print('  edges: ', end='')
+sol_edges = []
+for u in range(d_n):
+    for v in range(d_n - 1):
+        if u == v: continue
+        if d_solver.Value(d_x_e[u][v]):
+            print(f'{d_names[u]}-{d_names[v]}; ', end='')
+            sol_edges.append((d_names[u], d_names[v]))
 
-    coords_dict = {names[i]: c for i, c in enumerate(coords)}
-    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'green', style='dotted', node_size=10)
+# Solution plotting:
+plt.figure(figsize=(10, 6))
 
-    plot_grid(EPS)
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.show()
-else:
-    print('No solution found.')
+coords_dict = {d_names[i]: c for i, c in enumerate(d_coords)}
+plot_solution(DG, sol_edges, coords_dict, d_names, node_colors, 'green', style='dotted', node_size=10)
+
+plot_grid(EPS)
+plt.gca().set_aspect('equal', adjustable='box')
+plt.show()
