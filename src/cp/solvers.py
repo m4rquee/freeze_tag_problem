@@ -1,7 +1,7 @@
 from ortools.sat.python import cp_model
 
 
-def solve_bdhst(names, dist, degrees, max_time, ub, name='BDHST Problem'):
+def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, name='BDHST Problem'):
     n = len(names)
     source = names[-1]
 
@@ -36,6 +36,16 @@ def solve_bdhst(names, dist, degrees, max_time, ub, name='BDHST Problem'):
             model.Add(d_v[v] == d_v[u] + dist(u, v)).OnlyEnforceIf(x_e[u][v])
         model.Add(d_v[v] >= dist(-1, v))  # additional lb restriction to help the solver
 
+    if hop_depth > 0:  # should control the hop depth
+        hop_d_v = [model.NewIntVar(0, hop_depth, f'hop_d_{names[i]}') for i in range(n - 1)] + \
+                  [model.NewIntVar(0, 0, f'hop_d_{source}')]
+
+        # A node hop depth is its parents hop depth plus one:
+        for v in range(n - 1):
+            for u in range(n):
+                if u == v:  continue
+                model.Add(hop_d_v[v] == hop_d_v[u] + 1).OnlyEnforceIf(x_e[u][v])
+
     # Creates a solver and solves the model:
     model.Minimize(depth)
     solver = cp_model.CpSolver()
@@ -50,4 +60,4 @@ def solve_bdhst(names, dist, degrees, max_time, ub, name='BDHST Problem'):
 
 def solve_ftp(names, dist, max_time, ub):
     degrees = (len(names) - 1) * [2] + [1]
-    return solve_bdhst(names, dist, degrees, max_time, ub, 'Freeze-Tag Problem')
+    return solve_bdhst(names, dist, degrees, max_time, ub, 0, 'Freeze-Tag Problem')
