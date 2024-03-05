@@ -67,3 +67,9 @@ def discretize(names, coords, source, eps):
     degrees.append(source_degree)
     source_i = len(disc_names) - 1
     return disc_names, disc_coords, degrees, source_i, grid
+
+
+def calc_height(root, names_to_i, sol_dg, dist):
+    children = list(sol_dg.neighbors(root))
+    if len(children) == 0: return 0
+    return max(dist(names_to_i[root], names_to_i[v]) + calc_height(v, names_to_i, sol_dg, dist) for v in children)

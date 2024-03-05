@@ -8,7 +8,7 @@ from ortools.sat.python import cp_model
 from src.cp.reading import read_tsplib_graph
 from src.cp.plotting import plot_solution, plot_grid
 from src.cp.solvers import solve_bdhst, solve_ftp_inner
-from src.cp.utils import trivial_ub, l2_norm, normalize, discretize
+from src.cp.utils import trivial_ub, l2_norm, normalize, discretize, calc_height
 
 EPS = float(argv[1])
 MAX_TIME = int(argv[2])
@@ -40,8 +40,8 @@ to_orig = delta / factor
 # Upper level discretized BDHST solution:
 print('Upper level discretized BDHST solution:')
 d_depth = d_solver.Value(d_depth)
-print(f'  number of nodes        : {d_n}')
-print(f'  solution solution depth: {to_orig * d_depth:.2f}')
+print(f'  number of nodes: {d_n}')
+print(f'  solution depth : {to_orig * d_depth:.2f}')
 
 d_sol_edges = []
 for u in range(d_n):
@@ -54,6 +54,14 @@ for u in range(d_n):
 d_dg = DG.edge_subgraph(d_sol_edges)
 MAX_TIME -= d_solver.WallTime()
 sol_edges = solve_ftp_inner(d_dg, names, names_to_i, source, coords, d_grid, delta, MAX_TIME)
+
+sol_dg = DG.edge_subgraph(sol_edges)
+makespan = calc_height(source, names_to_i, sol_dg, l2_norm(coords, delta))
+
+# Final solution:
+print('Final solution:')
+print(f'  number of nodes  : {n}')
+print(f'  solution makespan: {to_orig * makespan:.2f}')
 
 # Solution plotting:
 plt.figure(figsize=(8, 6))
