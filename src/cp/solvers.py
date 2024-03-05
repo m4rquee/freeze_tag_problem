@@ -1,7 +1,9 @@
 from ortools.sat.python import cp_model
 
+from src.cp.utils import l2_norm, trivial_ub
 
-def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, name='BDHST Problem'):
+
+def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name='BDHST Problem', gap=0.0):
     n = len(names)
     source = names[-1]
 
@@ -51,13 +53,56 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, name='BDHST Pro
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 4
     solver.parameters.max_time_in_seconds = max_time
-    solver.parameters.log_search_progress = True
+    solver.parameters.log_search_progress = log
     solver.parameters.name = name
+    solver.parameters.relative_gap_limit = gap
     status = solver.Solve(model)
 
     return status, model, solver, depth, d_v, x_e
 
 
-def solve_ftp(names, dist, max_time, ub):
+def solve_ftp(names, dist, max_time, ub, log=False):
     degrees = (len(names) - 1) * [2] + [1]
-    return solve_bdhst(names, dist, degrees, max_time, ub, 0, 'Freeze-Tag Problem')
+    return solve_bdhst(names, dist, degrees, max_time, ub, 0, log, 'Freeze-Tag Problem')
+
+
+def solve_ftp_inner(dg, names, names_to_i, source, coords, grid, delta, max_time):
+    print()
+    sol_edges = []
+    for i, line in enumerate(grid):
+        for j, cell in enumerate(line):
+            if len(cell) == 0: continue
+
+            root_name = names[cell[0]]
+            if len(cell) == 1:
+                original_edges = [(root_name, v) for v in dg.neighbors(root_name)]
+                sol_edges.extend(original_edges)
+                continue
+
+            leaves = list(dg.neighbors(root_name))
+            cell_names = leaves + [names[k] for k in cell[::-1]]
+            degrees = len(leaves) * [0] + (len(cell) - 1) * [2]
+            degrees.append(1 if root_name == source else 2)
+
+            n = len(cell_names)
+            cell_nodes_coords = [coords[names_to_i[v]] for v in cell_names]
+            dist = l2_norm(cell_nodes_coords, delta)
+            UB = trivial_ub(n, dist)
+
+            print(f'Solving inner level cell ({i}; {j}) with {n} points...', end='\r', flush=True)
+            status, _, solver, _, _, x_e = \
+                solve_bdhst(cell_names, dist, degrees, max_time, UB, 0, False,
+                            'Freeze-Tag Problem', 0.0)
+            status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
+            if not status:
+                exit(f'Could not find any solution to the inner level cell ({i}; {j})!')
+
+            max_time -= solver.WallTime()
+            for u in range(n):
+                for v in range(n - 1):
+                    if u == v: continue
+                    if solver.Value(x_e[u][v]):
+                        sol_edges.append((cell_names[u], cell_names[v]))
+
+    print('\n')
+    return sol_edges
