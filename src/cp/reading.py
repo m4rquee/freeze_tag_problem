@@ -6,6 +6,8 @@ def read_tsplib_graph():
     coords = []
     while (line := input()) != "EOF":
         name, x, y = line.split()
+        coord = (float(x), float(y))
+        # if coord in coords: continue  # ignore duplicates
         names.append(int(name))
-        coords.append((float(x), float(y)))
+        coords.append(coord)
     return names, coords

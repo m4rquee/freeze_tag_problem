@@ -80,7 +80,7 @@ print(f'  solution makespan: {to_orig * makespan:.2f}')
 plt.figure(figsize=(8, 6))
 
 coords_dict = {names[i]: c for i, c in enumerate(coords)}
-# sol_edges = [(i, j) for i, j in sol_edges if dist(names_to_i[i], names_to_i[j]) > 0]
+# sol_edges = [(i, j) for i, j in sol_edges if coords[names_to_i[i]] != coords[names_to_i[j]]]
 plot_solution(DG, sol_edges, coords_dict, names, 'black', 'green', style='solid', node_size=40)
 plot_solution(DG, d_sol_edges, coords_dict, d_names, 'white', 'gray', style='dotted', node_size=10)
 
