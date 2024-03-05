@@ -104,5 +104,4 @@ def solve_ftp_inner(dg, names, names_to_i, source, coords, grid, delta, max_time
                     if solver.Value(x_e[u][v]):
                         sol_edges.append((cell_names[u], cell_names[v]))
 
-    print('\n')
     return sol_edges

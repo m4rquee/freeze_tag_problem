@@ -22,8 +22,14 @@ DG = nx.complete_graph(names, nx.DiGraph)
 dist = l2_norm(coords, delta)
 UB = trivial_ub(n, dist)
 
+# Print instance info:
+print('Freeze-Tag instance information:')
+print(f'\tTime limit = {MAX_TIME}s')
+print('\tNumber of nodes =', n)
+print('\tSource =', source)
+
 # FTP solving:
-status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, UB)
+status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, UB, True)
 
 if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # FTP solution:
@@ -47,12 +53,13 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
             if solver.Value(x_e[u][v]):
                 print(f'{names[u]}-{names[v]}; ', end='')
                 sol_edges.append((names[u], names[v]))
+    print()
 
     # Solution plotting:
     plt.figure(figsize=(10, 6))
 
     coords_dict = {names[i]: c for i, c in enumerate(coords)}
-    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'red', style='dashed', node_size=10)
+    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
 
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
