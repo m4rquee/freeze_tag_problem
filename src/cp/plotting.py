@@ -5,9 +5,7 @@ from matplotlib import pyplot as plt
 
 
 def plot_solution(dg, sol_edges, node_coords, node_names, node_colors, edge_color="black", **kwds):
-    aux = dg.edge_subgraph(sol_edges).subgraph(node_names)
-    # todo: fix networkx random node shuffling
-    nx.draw(aux, pos=node_coords, node_color=node_colors, edge_color=edge_color, **kwds)
+    nx.draw(dg, pos=node_coords, node_color=node_colors, edge_color=edge_color, **kwds)
 
 
 def plot_grid(eps):

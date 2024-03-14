@@ -18,7 +18,6 @@ names, coords = read_tsplib_graph()
 n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
-DG = nx.complete_graph(names, nx.DiGraph)
 dist = l2_norm(coords, delta)
 UB = trivial_ub(n, dist)
 
@@ -37,13 +36,10 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     depth = solver.Value(depth)
     print(f'  solution depth: {delta * depth:.2f}')
     print(f'  d_v = (', end='')
-    node_colors = []
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
-        node_colors.append('cyan' if depth_v == depth else 'black')
         print(f'{delta * depth_v:.2f}', end=', ')
     print(f'{delta * solver.Value(d_v[-1])})')
-    node_colors.append('red')
 
     print('  edges: ', end='')
     sol_edges = []
@@ -53,13 +49,21 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
             if solver.Value(x_e[u][v]):
                 print(f'{names[u]}-{names[v]}; ', end='')
                 sol_edges.append((names[u], names[v]))
+    tree = nx.DiGraph(sol_edges)
     print()
+
+    node_colors = []
+    for v in tree.nodes:
+        if v == source:
+            node_colors.append('red')
+        else:
+            node_colors.append('cyan' if solver.Value(d_v[v]) == depth else 'black')
 
     # Solution plotting:
     plt.figure(figsize=(10, 6))
 
     coords_dict = {names[i]: c for i, c in enumerate(coords)}
-    plot_solution(DG, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
+    plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
 
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()

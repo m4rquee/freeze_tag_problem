@@ -20,8 +20,7 @@ names, coords = read_tsplib_graph()
 coords, factor = normalize(coords, EPS)
 n = len(names)
 source = names[n - 1]
-names_to_i = {name: i for i, name in enumerate(names)}
-DG = nx.complete_graph(names, nx.DiGraph)
+names_to_i = dict(zip(names, range(n)))
 
 # Print instance info:
 print('Freeze-Tag instance information:')
@@ -30,11 +29,11 @@ print('\tNumber of nodes =', n)
 print('\tSource =', source)
 
 # Upper level discretized BDHST solving:
-d_names, d_coords, d_degrees, d_source_i, d_grid = discretize(names, coords, names_to_i[source], EPS)
+d_names, d_coords, d_degrees, d_grid = discretize(names, coords, EPS)
 d_n = len(d_names)
 d_dist = l2_norm(d_coords, delta)
 d_UB = trivial_ub(d_n, d_dist)
-hop_depth = min(d_n - 1, ceil(log2(d_n)) ** 2)
+hop_depth = min(d_n - 1, ceil(log2(d_n) ** 2))
 
 # Print upper level instance info:
 print('Upper level discretized BDHST information:')
@@ -53,7 +52,7 @@ to_orig = delta / factor
 print('Upper level discretized BDHST solution:')
 d_depth = d_solver.Value(d_depth)
 print(f'  number of nodes: {d_n}')
-print(f'  solution depth : {to_orig * d_depth:.2f}')
+print(f'  solution depth : {to_orig * d_depth:.2f}\n')
 
 d_sol_edges = []
 for u in range(d_n):
@@ -61,18 +60,18 @@ for u in range(d_n):
         if u == v: continue
         if d_solver.Value(d_x_e[u][v]):
             d_sol_edges.append((d_names[u], d_names[v]))
+d_tree = nx.DiGraph(d_sol_edges)  # upper level tree
 
 # Inner FTPs solving:
-d_dg = DG.edge_subgraph(d_sol_edges)
 MAX_TIME -= d_solver.WallTime()
-sol_edges = solve_ftp_inner(d_dg, names, names_to_i, source, coords, d_grid, delta, MAX_TIME)
+sol_edges = solve_ftp_inner(d_tree, names_to_i, source, coords, d_grid, delta, MAX_TIME)
+tree = nx.DiGraph(sol_edges)  # full solution tree
 
-sol_dg = DG.edge_subgraph(sol_edges)
 dist = l2_norm(coords, delta)
-makespan = calc_height(source, names_to_i, sol_dg, dist)
+makespan = calc_height(source, names_to_i, tree, dist)
 
 # Final solution:
-print('Final solution:')
+print('\n\nFinal solution:')
 print(f'  number of nodes  : {n}')
 print(f'  solution makespan: {to_orig * makespan:.2f}')
 
@@ -80,9 +79,11 @@ print(f'  solution makespan: {to_orig * makespan:.2f}')
 plt.figure(figsize=(8, 6))
 
 coords_dict = {names[i]: c for i, c in enumerate(coords)}
-# sol_edges = [(i, j) for i, j in sol_edges if coords[names_to_i[i]] != coords[names_to_i[j]]]
-plot_solution(DG, sol_edges, coords_dict, names, 'black', 'green', style='solid', node_size=40)
-plot_solution(DG, d_sol_edges, coords_dict, d_names, 'white', 'gray', style='dotted', node_size=10)
+# sol_edges = [(i, j) for i, j in sol_edges if coords[names_to_i[i]] != coords[names_to_i[j]]] # hide self loops
+node_colors = ['black' if source != node else 'red' for node in tree.nodes]
+plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
+plot_solution(d_tree, d_sol_edges, coords_dict, d_names, 'white', 'gray', style='dotted', node_size=10,
+              connectionstyle='arc3,rad=0.1')
 
 plot_grid(EPS)
 plt.gca().set_aspect('equal', adjustable='box')

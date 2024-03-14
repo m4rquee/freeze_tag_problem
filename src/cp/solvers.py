@@ -51,7 +51,7 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
     # Creates a solver and solves the model:
     model.Minimize(depth)
     solver = cp_model.CpSolver()
-    solver.parameters.num_search_workers = 4
+    solver.parameters.num_search_workers = 8
     solver.parameters.max_time_in_seconds = max_time
     solver.parameters.log_search_progress = log
     solver.parameters.name = name
@@ -66,21 +66,21 @@ def solve_ftp(names, dist, max_time, ub, log=False):
     return solve_bdhst(names, dist, degrees, max_time, ub, 0, log, 'Freeze-Tag Problem')
 
 
-def solve_ftp_inner(dg, names, names_to_i, source, coords, grid, delta, max_time):
-    print()
+def solve_ftp_inner(d_tree, names_to_i, source, coords, grid, delta, max_time):
+    d_tree = d_tree.copy()
     sol_edges = []
     for i, line in enumerate(grid):
         for j, cell in enumerate(line):
             if len(cell) == 0: continue
 
-            root_name = names[cell[0]]
+            root_name = cell[0]
             if len(cell) == 1:
-                original_edges = [(root_name, v) for v in dg.neighbors(root_name)]
+                original_edges = [(root_name, v) for v in d_tree.neighbors(root_name)]
                 sol_edges.extend(original_edges)
                 continue
 
-            leaves = list(dg.neighbors(root_name))
-            cell_names = leaves + [names[k] for k in cell[::-1]]
+            leaves = list(d_tree.neighbors(root_name))
+            cell_names = leaves + cell[::-1]  # the root will be the last node
             degrees = len(leaves) * [0] + (len(cell) - 1) * [2]
             degrees.append(1 if root_name == source else 2)
 
@@ -89,10 +89,9 @@ def solve_ftp_inner(dg, names, names_to_i, source, coords, grid, delta, max_time
             dist = l2_norm(cell_nodes_coords, delta)
             UB = trivial_ub(n, dist)
 
-            print(f'Solving inner level cell ({i}; {j}) with {n} points...', end='\r', flush=True)
+            print(f'Solving inner level cell ({i}; {j}) with {n} points - {max_time:.2f}s remaining...', end='\r')
             status, _, solver, _, _, x_e = \
-                solve_bdhst(cell_names, dist, degrees, max_time, UB, 0, False,
-                            'Freeze-Tag Problem', 0.0)
+                solve_bdhst(cell_names, dist, degrees, max_time, UB, 0, False, 'Freeze-Tag Problem')
             status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
             if not status:
                 exit(f'Could not find any solution to the inner level cell ({i}; {j})!')
