@@ -7,7 +7,7 @@ from ortools.sat.python import cp_model
 from src.cp.solvers import solve_ftp
 from src.cp.plotting import plot_solution
 from src.cp.reading import read_tsplib_graph
-from src.cp.utils import trivial_ub, l2_norm
+from src.cp.utils import trivial_ub, l2_norm, calc_height
 
 MAX_TIME = int(argv[1])
 
@@ -57,7 +57,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
         if v == source:
             node_colors.append('red')
         else:
-            node_colors.append('cyan' if solver.Value(d_v[v]) == depth else 'black')
+            node_colors.append('cyan' if solver.Value(d_v[names_to_i[v]]) == depth else 'black')
 
     # Solution plotting:
     plt.figure(figsize=(10, 6))
