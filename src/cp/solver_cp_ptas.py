@@ -13,7 +13,7 @@ from src.cp.utils import trivial_ub, l2_norm, normalize, discretize, calc_height
 EPS = float(argv[1])
 MAX_TIME = int(argv[2])
 
-delta = 1E-4
+delta = 1E-2
 
 # Setup:
 names, coords = read_tsplib_graph()
@@ -29,7 +29,7 @@ print('\tNumber of nodes =', n)
 print('\tSource =', source)
 
 # Upper level discretized BDHST solving:
-d_names, d_coords, d_degrees, d_grid = discretize(names, coords, EPS)
+d_names, d_coords, d_degrees, grid_map = discretize(names, names_to_i, coords, EPS)
 d_n = len(d_names)
 d_dist = l2_norm(d_coords, delta)
 d_UB = trivial_ub(d_n, d_dist)
@@ -64,7 +64,8 @@ d_tree = nx.DiGraph(d_sol_edges)  # upper level tree
 
 # Inner FTPs solving:
 MAX_TIME -= d_solver.WallTime()
-sol_edges = solve_ftp_inner(d_tree, names_to_i, source, coords, d_grid, delta, MAX_TIME)
+sol_edges = []
+solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, MAX_TIME)
 tree = nx.DiGraph(sol_edges)  # full solution tree
 
 dist = l2_norm(coords, delta)

@@ -38,7 +38,7 @@ def normalize(coords, eps):
     return [(factor * x, factor * y) for x, y in zip(xs, ys)], factor
 
 
-def discretize(names, coords, eps):  # the source is assumed to be the last node
+def discretize(names, name_to_i, coords, eps):  # the source is assumed to be the last node
     grid_dim = ceil(1.0 / eps)
     grid = [[[] for _ in range(grid_dim)] for _ in range(grid_dim)]
 
@@ -49,18 +49,21 @@ def discretize(names, coords, eps):  # the source is assumed to be the last node
         else:
             grid[floor(x)][floor(y)].append(v)
 
+    grid_map = {}
     rep_names, rep_coords, rep_degrees = [], [], []
     source_cell = None
     for line in grid:
         for cell in line:
             if len(cell) == 0: continue
 
+            for v in cell: grid_map[v] = cell
+
             if cell[0] == source:
                 source_cell = cell
                 continue
 
             rep_names.append(cell[0])
-            rep_coords.append(coords[cell[0]])
+            rep_coords.append(coords[name_to_i[cell[0]]])
             rep_degrees.append(min(len(cell) + 1, grid_dim ** 2 - 1))
 
     # Make the whole instance source the representatives source also:
@@ -68,7 +71,7 @@ def discretize(names, coords, eps):  # the source is assumed to be the last node
     rep_coords.append(coords[-1])
     rep_degrees.append(min(len(source_cell), grid_dim ** 2 - 1))
 
-    return rep_names, rep_coords, rep_degrees, grid
+    return rep_names, rep_coords, rep_degrees, grid_map
 
 
 def calc_height(root, names_to_i, sol_dg, dist):

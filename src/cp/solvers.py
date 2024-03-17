@@ -36,7 +36,8 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
         for u in range(n):
             if u == v:  continue
             model.Add(d_v[v] == d_v[u] + dist(u, v)).OnlyEnforceIf(x_e[u][v])
-        model.Add(d_v[v] >= dist(-1, v))  # additional lb restriction to help the solver
+            # Additional lb restriction to help the solver:
+            model.Add(d_v[v] >= dist(-1, u) + dist(u, v)).OnlyEnforceIf(x_e[u][v])
 
     if hop_depth > 0:  # should control the hop depth
         hop_d_v = [model.NewIntVar(0, hop_depth, f'hop_d_{names[i]}') for i in range(n - 1)] + \
@@ -66,41 +67,51 @@ def solve_ftp(names, dist, max_time, ub, log=False):
     return solve_bdhst(names, dist, degrees, max_time, ub, 0, log, 'Freeze-Tag Problem')
 
 
-def solve_ftp_inner(d_tree, names_to_i, source, coords, grid, delta, max_time):
-    d_tree = d_tree.copy()
-    sol_edges = []
-    for i, line in enumerate(grid):
-        for j, cell in enumerate(line):
-            if len(cell) == 0: continue
+def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, max_time):
+    cell = grid_map[source]  # current cell
+    source_father = next(d_tree.predecessors(source), None)  # the father of this cell's representative
 
-            root_name = cell[0]
-            if len(cell) == 1:
-                original_edges = [(root_name, v) for v in d_tree.neighbors(root_name)]
-                sol_edges.extend(original_edges)
-                continue
+    # Gather the representatives for the children cells:
+    leaves = []
+    for child_cell_representative in d_tree.neighbors(source):
+        child_cell = grid_map[child_cell_representative]
+        rep, max_time = solve_ftp_inner(sol_edges, d_tree, names_to_i, child_cell[0], coords, grid_map, delta, max_time)
+        leaves.append(rep)  # save the new dynamically chosen representative
 
-            leaves = list(d_tree.neighbors(root_name))
-            cell_names = leaves + cell[::-1]  # the root will be the last node
-            degrees = len(leaves) * [0] + (len(cell) - 1) * [2]
-            degrees.append(1 if root_name == source else 2)
+    cell_names = leaves + cell[::-1]  # the source will be the last node
+    degrees = len(leaves) * [0] + (len(cell) - 1) * [2]
 
-            n = len(cell_names)
-            cell_nodes_coords = [coords[names_to_i[v]] for v in cell_names]
-            dist = l2_norm(cell_nodes_coords, delta)
-            UB = trivial_ub(n, dist)
+    # Solve the sub-problem with source_father as source to let the solver figure out the best cell representative:
+    if source_father is not None:  # this is not the root cell
+        cell_names.append(source_father)
+        degrees.append(2)
+    degrees.append(1)
+    n = len(cell_names)
 
-            print(f'Solving inner level cell ({i}; {j}) with {n} points - {max_time:.2f}s remaining...', end='\r')
-            status, _, solver, _, _, x_e = \
-                solve_bdhst(cell_names, dist, degrees, max_time, UB, 0, False, 'Freeze-Tag Problem')
-            status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
-            if not status:
-                exit(f'Could not find any solution to the inner level cell ({i}; {j})!')
+    p = 100.0 * len(sol_edges) / (len(coords) - 1)
+    print(f'Solving inner level cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
 
-            max_time -= solver.WallTime()
-            for u in range(n):
-                for v in range(n - 1):
-                    if u == v: continue
-                    if solver.Value(x_e[u][v]):
-                        sol_edges.append((cell_names[u], cell_names[v]))
+    # Solve the sub-problem:
+    cell_coords = [coords[names_to_i[v]] for v in cell_names]
+    dist = l2_norm(cell_coords, delta)
+    UB = trivial_ub(n, dist)
+    status, _, solver, _, _, x_e = solve_bdhst(cell_names, dist, degrees, max_time, UB, 0, False, 'Freeze-Tag Problem')
+    status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
+    max_time -= solver.WallTime()
+    if not status:
+        exit(f'\nCould not find any solution to the inner level cell!')
 
-    return sol_edges
+    # Gather the sub-problem solution edges:
+    new_source = None
+    for u in range(n):
+        for v in range(n - 1):
+            if u == v: continue
+            if solver.Value(x_e[u][v]):
+                if cell_names[u] == source_father:
+                    # Do not connect the new source to source_father, as the connection between source_father's cell and
+                    # the current one will be defined later:
+                    new_source = cell_names[v]  # this cell's new source selected by the solver
+                else:
+                    sol_edges.append((cell_names[u], cell_names[v]))
+
+    return new_source, max_time
