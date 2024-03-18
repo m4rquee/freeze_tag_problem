@@ -9,9 +9,7 @@ Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool 
     source_radius = graph_radius = graph_diameter = -1;
     source = INVALID;
 #ifndef BDHST
-    if (tsplib) source = Digraph::nodeFromId(g.maxNodeId());
-    else
-        source = Digraph::nodeFromId(0);
+    source = Digraph::nodeFromId(0);
 #endif
     if (calc_clojure) clojure();
     for (ArcIt e(g); e != INVALID; ++e) {
