@@ -12,8 +12,8 @@ from src.cp.utils import trivial_ub, l2_norm, normalize, discretize, calc_height
 
 EPS = float(argv[1])
 MAX_TIME = int(argv[2])
-
-delta = 1E-2
+TOTAL_TIME = MAX_TIME
+delta = 1E-4
 
 # Setup:
 names, coords = read_tsplib_graph()
@@ -33,12 +33,12 @@ d_names, d_coords, d_degrees, grid_map = discretize(names, names_to_i, coords, E
 d_n = len(d_names)
 d_dist = l2_norm(d_coords, delta)
 d_UB = trivial_ub(d_n, d_dist)
-hop_depth = min(d_n - 1, ceil(log2(d_n) ** 2))
+hop_depth = 0.0  # min(d_n - 1, ceil(log2(d_n) ** 2))
 
 # Print upper level instance info:
 print('Upper level discretized BDHST information:')
 print('\tNumber of nodes =', d_n)
-print('\tHop depth =', hop_depth)
+print('\tHop depth =', hop_depth if hop_depth > 0 else "no limit")
 
 d_status, _, d_solver, d_depth, d_d_v, d_x_e = solve_bdhst(d_names, d_dist, d_degrees, MAX_TIME, d_UB, hop_depth, True)
 
@@ -65,16 +65,17 @@ d_tree = nx.DiGraph(d_sol_edges)  # upper level tree
 # Inner FTPs solving:
 MAX_TIME -= d_solver.WallTime()
 sol_edges = []
-solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, MAX_TIME)
+_, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, MAX_TIME)
 tree = nx.DiGraph(sol_edges)  # full solution tree
 
 dist = l2_norm(coords, delta)
 makespan = calc_height(source, names_to_i, tree, dist)
 
 # Final solution:
-print('\n\nFinal solution:')
+print('\n\nFreeze-Tag solution:')
 print(f'  number of nodes  : {n}')
 print(f'  solution makespan: {to_orig * makespan:.2f}')
+print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 
 # Solution plotting:
 plt.figure(figsize=(8, 6))
