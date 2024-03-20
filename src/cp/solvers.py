@@ -39,6 +39,13 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
             # Additional lb restriction to help the solver:
             model.Add(d_v[v] >= dist(-1, u) + dist(u, v)).OnlyEnforceIf(x_e[u][v])
 
+            continue
+            # Additional restrictions to help the solver:
+            if u != source:
+                u_out_degree_sum = sum(uw for uw in x_e[u] if uw is not None)
+                v_out_degree_sum = sum(vw for vw in x_e[v] if vw is not None)
+                model.Add(u_out_degree_sum >= v_out_degree_sum).OnlyEnforceIf(x_e[u][v])
+
     if hop_depth > 0:  # should control the hop depth
         hop_d_v = [model.NewIntVar(0, hop_depth, f'hop_d_{names[i]}') for i in range(n - 1)] + \
                   [model.NewIntVar(0, 0, f'hop_d_{source}')]
