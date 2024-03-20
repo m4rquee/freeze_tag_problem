@@ -10,4 +10,5 @@ def read_tsplib_graph():
         # if coord in coords: continue  # ignore duplicates
         names.append(int(name))
         coords.append(coord)
-    return names, coords
+    # todo: change the other functions instead of inverting the output
+    return names[::-1], coords[::-1]
