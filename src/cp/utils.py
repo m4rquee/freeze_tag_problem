@@ -78,3 +78,9 @@ def calc_height(root, names_to_i, sol_dg, dist):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
     return max(dist(names_to_i[root], names_to_i[v]) + calc_height(v, names_to_i, sol_dg, dist) for v in children)
+
+
+def calc_depth(root, names_to_i, sol_dg):
+    children = list(sol_dg.neighbors(root))
+    if len(children) == 0: return 0
+    return max(1 + calc_depth(v, names_to_i, sol_dg) for v in children)
