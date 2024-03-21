@@ -89,7 +89,7 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     n = len(cell_names)
 
     p = 100.0 * len(sol_edges) / (len(coords) - 1)
-    print(f'Solving inner level cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
+    print(f'Solving inner cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
 
     # Solve the sub-problem:
     cell_coords = [coords[names_to_i[v]] for v in cell_names]
@@ -99,7 +99,7 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
     max_time -= solver.WallTime()
     if not status:
-        exit(f'\nCould not find any solution to the inner level cell!')
+        exit(f'\nCould not find any solution to the inner cell!')
 
     # Gather the sub-problem solution edges:
     new_source = None

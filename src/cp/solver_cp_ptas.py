@@ -68,6 +68,7 @@ print(f'  hop depth      : {d_hop_depth}\n')
 MAX_TIME -= d_solver.WallTime()
 sol_edges = []
 _, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, MAX_TIME)
+print(f'Finished solving all inner cell problems with {MAX_TIME:.1f}s out of {TOTAL_TIME:.1f}s remaining...')
 tree = nx.DiGraph(sol_edges)  # full solution tree
 
 dist = l2_norm(coords, delta)
@@ -76,7 +77,7 @@ hop_depth = calc_depth(source, names_to_i, tree)
 lb = d_depth - d_hop_depth * sqrt(2)
 
 # Final solution:
-print('\n\nFreeze-Tag solution:')
+print('\nFreeze-Tag solution:')
 print(f'  number of nodes  : {n}')
 print(f'  solution makespan: {to_orig * makespan:.2f}')
 print(f'  lower bound      : {to_orig * lb:.2f}')
