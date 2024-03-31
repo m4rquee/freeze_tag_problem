@@ -39,13 +39,6 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
             # Additional lb restriction to help the solver:
             model.Add(d_v[v] >= dist(-1, u) + dist(u, v)).OnlyEnforceIf(x_e[u][v])
 
-            continue
-            # Additional restrictions to help the solver:
-            if u != source:
-                u_out_degree_sum = sum(uw for uw in x_e[u] if uw is not None)
-                v_out_degree_sum = sum(vw for vw in x_e[v] if vw is not None)
-                model.Add(u_out_degree_sum >= v_out_degree_sum).OnlyEnforceIf(x_e[u][v])
-
     if hop_depth > 0:  # should control the hop depth
         hop_d_v = [model.NewIntVar(0, hop_depth, f'hop_d_{names[i]}') for i in range(n - 1)] + \
                   [model.NewIntVar(0, 0, f'hop_d_{source}')]
@@ -96,7 +89,7 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     n = len(cell_names)
 
     p = 100.0 * len(sol_edges) / (len(coords) - 1)
-    print(f'Solving inner level cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
+    print(f'Solving inner cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
 
     # Solve the sub-problem:
     cell_coords = [coords[names_to_i[v]] for v in cell_names]
@@ -106,7 +99,7 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
     max_time -= solver.WallTime()
     if not status:
-        exit(f'\nCould not find any solution to the inner level cell!')
+        exit(f'\nCould not find any solution to the inner cell!')
 
     # Gather the sub-problem solution edges:
     new_source = None

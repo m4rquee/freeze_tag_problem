@@ -4,10 +4,10 @@ import networkx as nx
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
+from src.cp.utils import *
 from src.cp.solvers import solve_ftp
 from src.cp.plotting import plot_solution
 from src.cp.reading import read_tsplib_graph
-from src.cp.utils import trivial_ub, l2_norm, calc_height
 
 MAX_TIME = int(argv[1])
 
@@ -34,7 +34,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # FTP solution:
     print('Full FTP solution:')
     depth = solver.Value(depth)
-    print(f'  solution depth: {delta * depth:.2f}')
+    print(f'  solution makespan: {delta * depth:.2f}')
     print(f'  d_v = (', end='')
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
@@ -50,7 +50,8 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
                 print(f'{names[u]}-{names[v]}; ', end='')
                 sol_edges.append((names[u], names[v]))
     tree = nx.DiGraph(sol_edges)
-    print()
+    hop_depth = calc_depth(source, names_to_i, tree)
+    print(f'\n  hop depth: {hop_depth}')
 
     node_colors = []
     for v in tree.nodes:

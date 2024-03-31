@@ -5,10 +5,10 @@ import networkx as nx
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
+from src.cp.utils import *
 from src.cp.reading import read_tsplib_graph
 from src.cp.plotting import plot_solution, plot_grid
 from src.cp.solvers import solve_bdhst, solve_ftp_inner
-from src.cp.utils import trivial_ub, l2_norm, normalize, discretize, calc_height
 
 EPS = float(argv[1])
 MAX_TIME = int(argv[2])
@@ -52,7 +52,7 @@ to_orig = delta / factor
 print('Upper level discretized BDHST solution:')
 d_depth = d_solver.Value(d_depth)
 print(f'  number of nodes: {d_n}')
-print(f'  solution depth : {to_orig * d_depth:.2f}\n')
+print(f'  solution height: {to_orig * d_depth:.2f}')
 
 d_sol_edges = []
 for u in range(d_n):
@@ -61,20 +61,28 @@ for u in range(d_n):
         if d_solver.Value(d_x_e[u][v]):
             d_sol_edges.append((d_names[u], d_names[v]))
 d_tree = nx.DiGraph(d_sol_edges)  # upper level tree
+d_hop_depth = calc_depth(source, names_to_i, d_tree)
+print(f'  hop depth      : {d_hop_depth}\n')
 
 # Inner FTPs solving:
 MAX_TIME -= d_solver.WallTime()
 sol_edges = []
 _, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, MAX_TIME)
+print(f'Finished solving all inner cell problems with {MAX_TIME:.1f}s out of {TOTAL_TIME:.1f}s remaining...')
 tree = nx.DiGraph(sol_edges)  # full solution tree
 
 dist = l2_norm(coords, delta)
 makespan = calc_height(source, names_to_i, tree, dist)
+hop_depth = calc_depth(source, names_to_i, tree)
+lb = d_depth - d_hop_depth * sqrt(2)
 
 # Final solution:
-print('\n\nFreeze-Tag solution:')
+print('\nFreeze-Tag solution:')
 print(f'  number of nodes  : {n}')
 print(f'  solution makespan: {to_orig * makespan:.2f}')
+print(f'  lower bound      : {to_orig * lb:.2f}')
+print(f'  gap              : {100 * (makespan - lb) / lb:.2f}%')
+print(f'  hop depth        : {hop_depth}')
 print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 
 # Solution plotting:
