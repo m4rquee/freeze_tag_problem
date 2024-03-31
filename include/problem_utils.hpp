@@ -92,7 +92,8 @@ protected:
         return INVALID;
     }
 
-    DNode get_shallowest_ancestor(const DNode &father, const DNode &child, const DNode &new_father);
+    bool is_ancestor(const DNode &u, const DNode &v);
+    bool improving_swap(const DNode &child, const DNode &new_father);
     void calc_depth(DNode &v, double v_depth);
     void heap_init();
 

@@ -1,8 +1,8 @@
 #include "problem_utils.hpp"
 
 Problem_Instance::Problem_Instance(const string &filename, int time_limit, bool calc_clojure, bool tsplib)
-    : time_limit(time_limit), vname(g), weight(g, MY_INF), px(g), py(g), original(g), solution(g, false),
-      node_activation(g), tsplib(tsplib), complete(calc_clojure) {
+    : time_limit(time_limit), vname(g), weight(g), px(g), py(g), original(g), solution(g), node_activation(g),
+      tsplib(tsplib), complete(calc_clojure) {
     read_instance(filename, tsplib);
 
     // Initialize the attributes:
@@ -222,7 +222,7 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
         degree[u]++;
         if (degree[u] == max_degree - (u != source)) {// becomes saturated with max_degree-1 children
             auto aux = remove(border.begin(), border.end(), u);
-            border.erase(aux, border.end());
+            border.erase(aux, border.end());// deallocate the last position
         }
         degree[v] = 0;
         border.push_back(v);
@@ -245,31 +245,25 @@ double LocalSearchCB::init() {
     return P.solution_makespan;
 }
 
-// Get the child's shallowest ancestor that still can be children of the new_father while improving its own cost:
-DNode LocalSearchCB::get_shallowest_ancestor(const DNode &father, const DNode &child, const DNode &new_father) {
-    // Cannot move a node to itself or its current father:
-    if (child == new_father || father == new_father) return INVALID;
+bool LocalSearchCB::is_ancestor(const DNode &u, const DNode &v) {// if u is an ancestor of v
+    if (u == v) return true;
+    if (v == P.source) return false;
+    auto father = get_father(v);
+    return is_ancestor(u, father);
+}
 
-    DNode grandfather = get_father(father);
-    double new_father_h = node_depth[new_father];
-    if (grandfather != P.source) {// reached the root and so moving the father will disconnect the tree
-        auto it = P.arc_map[new_father].find(father);
-        if (it != P.arc_map[new_father].end())// if this arc exists
-            if (new_father_h + P.weight[P.arc_map[new_father][father]] < node_depth[father])
-                return get_shallowest_ancestor(grandfather, father, new_father);// can keep going up
-    }
-    auto it = P.arc_map[new_father].find(child);
-    if (it != P.arc_map[new_father].end())// if this arc exists
-        if (new_father_h + P.weight[P.arc_map[new_father][child]] < node_depth[child])
-            return child;// found the shallowest ancestor that makes an improving swap
-    return INVALID;      // there is no improving swap
+// If connecting this child to new_father reduces the solution cost:
+bool LocalSearchCB::improving_swap(const DNode &child, const DNode &new_father) {
+    if (child == new_father) return false;
+    auto father = get_father(child);
+    if (father == new_father) return false;
+    if (is_ancestor(child, new_father)) return false;
+    return node_depth[new_father] + P.weight[P.arc_map[new_father][child]] < node_depth[child];
 }
 
 void LocalSearchCB::calc_depth(DNode &v, double v_depth) {
-    for (OutArcIt e(P.g, v); e != INVALID; ++e) {// todo: bug with the online edge update
+    for (OutArcIt e(P.g, v); e != INVALID; ++e) {
         (this->*set_solution)(x_e[e], arc_value[e]);
-        auto rev = findArc(P.g, P.g.target(e), P.g.source(e));
-        (this->*set_solution)(x_e[rev], false);
         if (arc_value[e]) {
             auto child = P.g.target(e);
             calc_depth(child, node_depth[child] = v_depth + P.weight[e]);
@@ -289,10 +283,10 @@ void LocalSearchCB::heap_init() {
         for (OutArcIt e(P.g, v); e != INVALID; ++e) node_degree[v] += arc_value[e];
         node_depth_heap.emplace_back(node_depth[v], v);
         if (node_degree[v] >= 2) continue;// cannot receive new children
-        available_fathers.emplace_back(ii_pair(-node_depth[v], -node_degree[v]), v);
+        available_fathers.emplace_back(ii_pair(node_depth[v], node_degree[v]), v);
     }
     make_heap(node_depth_heap.begin(), node_depth_heap.end());
-    make_heap(available_fathers.begin(), available_fathers.end());
+    make_heap(available_fathers.begin(), available_fathers.end(), greater<>{});
 }
 
 void LocalSearchCB::callback() {
@@ -312,45 +306,42 @@ void LocalSearchCB::callback() {
     while (!available_fathers.empty()) {
         iin_triple popped_triple = available_fathers.front();
         DNode &new_father = popped_triple.second;
-        pop_heap(available_fathers.begin(), available_fathers.end());// moves the triple to the end
-        available_fathers.pop_back();                                // deletes the triple from the heap
+        pop_heap(available_fathers.begin(), available_fathers.end(), greater<>{});// moves the triple to the end
+        available_fathers.pop_back();                                             // deletes the triple from the heap
 
         // Check if it can make a deep node child of the candidate father: -----------------------------------------
         in_pair popped_pair;
-        DNode shallowest_ancestor = INVALID, child;
+        DNode child;
+        bool can_swap = false;
         do {
             if (node_depth_heap.empty()) break;// cannot make a node child of this new father while improving the cost
             popped_pair = node_depth_heap.front();
-            child = shallowest_ancestor = popped_pair.second;
+            child = popped_pair.second;
             pop_heap(node_depth_heap.begin(), node_depth_heap.end());
             node_depth_heap.pop_back();
-            shallowest_ancestor = get_shallowest_ancestor(get_father(child), child, new_father);
-        } while (shallowest_ancestor == INVALID);
+            can_swap = improving_swap(child, new_father);
+        } while (!can_swap);
 
-        if (shallowest_ancestor == INVALID) continue;// could not find an improving swap with this candidate father
+        if (!can_swap) continue;// could not find an improving swap with this candidate father
         found_new_sol = true;
 
-        // Make the shallowest_ancestor child of the new_father: ---------------------------------------------------
-        Arc rev;
-        for (InArcIt e(P.g, shallowest_ancestor); e != INVALID; ++e)
-            if (arc_value[e]) {// remove the arc to the shallowest_ancestor from its old father
+        // Make the father swap: -----------------------------------------------------------------------------------
+        // Remove the arc to the child from its old father:
+        for (InArcIt e(P.g, child); e != INVALID; ++e)
+            if (arc_value[e]) {
                 (this->*set_solution)(x_e[e], arc_value[e] = false);
-                rev = findArc(P.g, P.g.target(e), P.g.source(e));
-                (this->*set_solution)(x_e[rev], false);
                 break;
             }
-        // Connect shallowest_ancestor to the new_father:
-        auto new_arc = P.arc_map[new_father][shallowest_ancestor];
+        // Connect the child to the new_father:
+        auto new_arc = P.arc_map[new_father][child];
         (this->*set_solution)(x_e[new_arc], arc_value[new_arc] = true);
-        rev = findArc(P.g, P.g.target(new_arc), P.g.source(new_arc));
-        (this->*set_solution)(x_e[rev], false);
 
-        node_depth[shallowest_ancestor] = node_depth[new_father] + P.weight[new_arc];
-        calc_depth(shallowest_ancestor, node_depth[shallowest_ancestor]);// update the whole subtree
-        heap_init();
+        node_depth[child] = node_depth[new_father] + P.weight[new_arc];
+        calc_depth(child, node_depth[child]);// update the whole subtree
+        heap_init();                         // reset the heaps to reflect the swap
     }
 
-    // Has found an improving solution and so informs it:
+    // Has found an improving solution and so informs it to Gurobi:
     if (found_new_sol) {
         auto new_sol_h = 0.0;
         for (DNodeIt v(P.g); v != INVALID; ++v) new_sol_h = max(new_sol_h, node_depth[v]);
