@@ -74,13 +74,16 @@ tree = nx.DiGraph(sol_edges)  # full solution tree
 dist = l2_norm(coords, delta)
 makespan = calc_height(source, names_to_i, tree, dist)
 hop_depth = calc_depth(source, names_to_i, tree)
-lb = d_depth - d_hop_depth * sqrt(2)
+source_radius = radius(n, n - 1, dist)
+d_lb = d_depth - d_hop_depth * sqrt(2)
+lb = max(source_radius, d_lb)
 
 # Final solution:
 print('\nFreeze-Tag solution:')
 print(f'  number of nodes  : {n}')
 print(f'  solution makespan: {to_orig * makespan:.2f}')
-print(f'  lower bound      : {to_orig * lb:.2f}')
+print(f'  source radius    : {to_orig * source_radius:.2f}')
+print(f'  d_lower bound    : {to_orig * d_lb:.2f}')
 print(f'  gap              : {100 * (makespan - lb) / lb:.2f}%')
 print(f'  hop depth        : {hop_depth}')
 print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')

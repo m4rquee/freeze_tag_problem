@@ -1,11 +1,17 @@
 from functools import cache
 from math import sqrt, floor, ceil, log2
 
+def radius(n, center, dist):
+    ret = 0
+    for v in range(n):
+        ret = max(ret, dist(center, v))
+    return ret
+
 
 def trivial_ub(n, dist):
     minimum_depth = ceil(log2(n))
 
-    diameter = float('-inf')
+    diameter = 0
     for u in range(n):
         for v in range(n):
             if u != v:
