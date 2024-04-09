@@ -82,6 +82,7 @@ cmake-build-debug
 
 # Idea files
 .idea
+.vscode
 
 # Outputs
 *.out
