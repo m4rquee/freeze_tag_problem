@@ -9,6 +9,7 @@ from src.cp.solvers import solve_ftp
 from src.cp.plotting import plot_solution
 from src.cp.reading import read_tsplib_graph
 
+
 MAX_TIME = int(argv[1])
 
 delta = 1E-2
@@ -19,22 +20,28 @@ n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
 dist = l2_norm(coords, delta)
-UB = trivial_ub(n, dist)
+sol_edges, UB = greedy_solution(n - 1, n, dist, names)
+source_radius = radius(n, n - 1, dist)
 
 # Print instance info:
 print('Freeze-Tag instance information:')
 print(f'\tTime limit = {MAX_TIME}s')
 print('\tNumber of nodes =', n)
 print('\tSource =', source)
+print(f'\tSource radius = {delta * source_radius:.2f}')
+print(f'\tGreedy bound = {delta * UB:.2f}')
+print(f'\tInitial gap = {100 * (UB - source_radius) / source_radius:.2f}%')
 
 # FTP solving:
-status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, UB, True)
+status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, UB, True, sol_edges)
 
 if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # FTP solution:
     print('Full FTP solution:')
     depth = solver.Value(depth)
     print(f'  solution makespan: {delta * depth:.2f}')
+    lb = solver.best_objective_bound
+    print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
     print(f'  d_v = (', end='')
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])

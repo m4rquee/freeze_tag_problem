@@ -10,8 +10,9 @@ from src.cp.reading import read_tsplib_graph
 from src.cp.plotting import plot_solution, plot_grid
 from src.cp.solvers import solve_bdhst, solve_ftp_inner
 
-EPS = float(argv[1])
-MAX_TIME = int(argv[2])
+
+MAX_TIME = int(argv[1])
+EPS = float(argv[2])
 TOTAL_TIME = MAX_TIME
 delta = 1E-4
 

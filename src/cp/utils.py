@@ -28,6 +28,49 @@ def l2_norm(coords, delta):
     return aux
 
 
+def greedy_solution(source, n, dist, names):
+    # Connect the source to the closest node:
+    min_target = None
+    min_arc_weight = float('inf')
+    for v in range(n):
+        if v == source: continue
+        aux = dist(source, v)
+        if aux < min_arc_weight:
+            min_target = v
+            min_arc_weight = aux
+    node_activation = {source: 0, min_target: min_arc_weight}
+    sol_edges = [(names[source], names[min_target])]
+    makespan = min_arc_weight
+
+    # Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
+    degree = {v: -1 for v in range(n)}
+    degree[source] = -2
+    degree[min_target] = 0
+
+    border = [min_target]
+    while len(sol_edges) < n - 1:
+        min_arc = (None, None)
+        min_makespan = float('inf')
+        for u in border:
+            for v in range(n):
+                if v == source or v == u: continue
+                if degree[v] == -1:  # not yet added
+                    aux = node_activation[u] + dist(u, v)
+                    if aux < min_makespan:
+                        min_arc = (u, v)
+                        min_makespan = aux
+        u, v = min_arc
+        sol_edges.append((names[u], names[v]))
+        node_activation[v] = min_makespan
+        makespan = max(makespan, min_makespan)
+        degree[u] += 1
+        if degree[u] == 3 - (u != source):
+            border.remove(u)
+        degree[v] = 0
+        border.append(v)
+    return sol_edges, makespan
+
+
 def normalize(coords, eps):
     grid_dim = ceil(1.0 / eps)
     xs, ys = zip(*coords)  # gather all points x and y coordinates

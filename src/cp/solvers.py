@@ -3,9 +3,10 @@ from ortools.sat.python import cp_model
 from src.cp.utils import l2_norm, trivial_ub
 
 
-def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name='BDHST Problem', gap=0.0):
+def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name='BDHST Problem', gap=0.0, init_sol=None):
     n = len(names)
     source = names[-1]
+    names_to_i = {name: i for i, name in enumerate(names)}
 
     # Model creation:
     model = cp_model.CpModel()
@@ -49,6 +50,11 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
                 if u == v:  continue
                 model.Add(hop_d_v[v] == hop_d_v[u] + 1).OnlyEnforceIf(x_e[u][v])
 
+    # Provides a warm start to the solver:
+    if init_sol is not None:
+        for u, v in init_sol:
+            model.AddHint(x_e[names_to_i[u]][names_to_i[v]], 1)
+
     # Creates a solver and solves the model:
     model.Minimize(depth)
     solver = cp_model.CpSolver()
@@ -62,9 +68,9 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
     return status, model, solver, depth, d_v, x_e
 
 
-def solve_ftp(names, dist, max_time, ub, log=False):
+def solve_ftp(names, dist, max_time, ub, log=False, init_sol=None):
     degrees = (len(names) - 1) * [2] + [1]
-    return solve_bdhst(names, dist, degrees, max_time, ub, 0, log, 'Freeze-Tag Problem')
+    return solve_bdhst(names, dist, degrees, max_time, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
 
 
 def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, max_time):

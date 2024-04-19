@@ -14,18 +14,16 @@ n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
 dist = l2_norm(coords, delta)
-UB = trivial_ub(n, dist)
 
 # Print instance info:
 print('Freeze-Tag instance information:')
 print('\tNumber of nodes =', n)
 print('\tSource =', source)
-print(f'\tTrivial UB = {delta * UB:.2f}')
 
 # FTP solving:
-sol_edges, makespan = greedy_solution(n, dist, names)
+sol_edges, makespan = greedy_solution(n - 1, n, dist, names)
 
-print('Greedy FTP solution:')
+print('\nGreedy FTP solution:')
 print(f'\tsolution makespan: {delta * makespan:.2f}')
 tree = nx.DiGraph(sol_edges)
 hop_depth = calc_depth(source, names_to_i, tree)
