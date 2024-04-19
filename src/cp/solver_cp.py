@@ -1,4 +1,5 @@
 from sys import argv
+from distutils.util import strtobool
 
 import networkx as nx
 from matplotlib import pyplot as plt
@@ -7,19 +8,26 @@ from ortools.sat.python import cp_model
 from src.cp.utils import *
 from src.cp.solvers import solve_ftp
 from src.cp.plotting import plot_solution
-from src.cp.reading import read_tsplib_graph
+from src.cp.reading import read_tsplib_graph, read_dig_graph
 
 
 MAX_TIME = int(argv[1])
+TSPLIB = strtobool(argv[2]) if len(argv) > 2 else True
 
 delta = 1E-2
 
 # Setup:
-names, coords = read_tsplib_graph()
+if TSPLIB:
+    names, coords = read_tsplib_graph()
+else:
+    names, coords, edges = read_dig_graph()
 n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
-dist = l2_norm(coords, delta)
+if TSPLIB:
+    dist = l2_norm(coords, delta)
+else:
+    dist = graph_dist(edges, names, delta)
 sol_edges, UB = greedy_solution(n - 1, n, dist, names)
 source_radius = radius(n, n - 1, dist)
 
@@ -42,7 +50,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     print(f'  solution makespan: {delta * depth:.2f}')
     lb = solver.best_objective_bound
     print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
-    print(f'  d_v = (', end='')
+    print(f'  d_v: (', end='')
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
         print(f'{delta * depth_v:.2f}', end=', ')
@@ -71,6 +79,10 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     plt.figure(figsize=(10, 6))
 
     coords_dict = {names[i]: c for i, c in enumerate(coords)}
+    if not TSPLIB:
+        whole_graph = nx.DiGraph(edges)
+        coords_dict = nx.nx_agraph.graphviz_layout(whole_graph, prog="dot")
+        plot_solution(whole_graph, edges, coords_dict, names, node_colors, 'black', style='dotted', node_size=40)
     plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
 
     plt.gca().set_aspect('equal', adjustable='box')

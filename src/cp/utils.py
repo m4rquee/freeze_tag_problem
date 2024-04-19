@@ -1,9 +1,14 @@
 from functools import cache
 from math import sqrt, floor, ceil, log2
 
+import networkx as nx
+import networkx.algorithms.approximation.steinertree as st
+
+
 def radius(n, center, dist):
     ret = 0
     for v in range(n):
+        if v == center: continue
         ret = max(ret, dist(center, v))
     return ret
 
@@ -23,6 +28,19 @@ def l2_norm(coords, delta):
     @cache
     def aux(u, v):
         d = sqrt((coords[u][0] - coords[v][0]) ** 2 + (coords[u][1] - coords[v][1]) ** 2)
+        return floor(d / delta)  # scale up so we can treat rational values as integers
+
+    return aux
+
+
+def graph_dist(edges, names, delta):
+    graph = st.metric_closure(nx.Graph(edges))
+
+    @cache
+    def aux(u, v):
+        u, v = names[u], names[v]
+        if u == v: return 0
+        d = graph.get_edge_data(u, v)['distance']
         return floor(d / delta)  # scale up so we can treat rational values as integers
 
     return aux
