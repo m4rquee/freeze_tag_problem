@@ -1,10 +1,12 @@
 import sys
 from os.path import join
+from math import cos, sin, pi
 from random import shuffle, random
 
 
 def print_nodes(n, out_file):
-    for i in range(n): print(i, n, n * n, file=out_file)
+    step = 2 * pi / n
+    for i in range(n): print(i, cos(i * step), sin(i * step), file=out_file)
 
 
 def print_edges(edges, out_file):
