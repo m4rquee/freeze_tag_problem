@@ -151,3 +151,12 @@ def calc_depth(root, names_to_i, sol_dg):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
     return max(1 + calc_depth(v, names_to_i, sol_dg) for v in children)
+
+
+def min_dist(n, dist):
+    ret = float('inf')
+    for u in range(n):
+        for v in range(n):
+            if v == u: continue
+            ret = min(ret, dist(u, v))
+    return ret

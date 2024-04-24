@@ -38,10 +38,12 @@ print('\tNumber of nodes =', n)
 print('\tSource =', source)
 print(f'\tSource radius = {delta * source_radius:.2f}')
 print(f'\tGreedy bound = {delta * UB:.2f}')
-print(f'\tInitial gap = {100 * (UB - source_radius) / source_radius:.2f}%')
+min_edge = min_dist(n, dist)
+LB = max(source_radius, min_edge * ceil(log2(n)))
+print(f'\tInitial gap = {100 * (UB - LB) / LB:.2f}%')
 
 # FTP solving:
-status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, UB, True, sol_edges)
+status, model, solver, depth, d_v, x_e = solve_ftp(names, dist, MAX_TIME, LB, UB, True, sol_edges)
 
 if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # FTP solution:

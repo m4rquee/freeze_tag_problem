@@ -1,9 +1,9 @@
 from ortools.sat.python import cp_model
 
-from src.cp.utils import l2_norm, trivial_ub
+from src.cp.utils import *
 
 
-def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name='BDHST Problem', gap=0.0, init_sol=None):
+def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDHST Problem', gap=0.0, init_sol=None):
     n = len(names)
     source = names[-1]
     names_to_i = {name: i for i, name in enumerate(names)}
@@ -16,7 +16,7 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
           [model.NewIntVar(0, 0, f'd_{source}')]
     x_e = [[model.NewBoolVar(f'x_({names[u]},{names[v]})') if v != u else None for v in range(n - 1)]
            for u in range(n)]
-    depth = model.NewIntVar(0, ub, 'depth')
+    depth = model.NewIntVar(lb, ub, 'depth')
 
     # Creates the constraints:
     out_degree_sum = sum(x_e[-1])
@@ -68,9 +68,9 @@ def solve_bdhst(names, dist, degrees, max_time, ub, hop_depth=0, log=False, name
     return status, model, solver, depth, d_v, x_e
 
 
-def solve_ftp(names, dist, max_time, ub, log=False, init_sol=None):
+def solve_ftp(names, dist, max_time, lb=0, ub=float('inf'), log=False, init_sol=None):
     degrees = (len(names) - 1) * [2] + [1]
-    return solve_bdhst(names, dist, degrees, max_time, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
+    return solve_bdhst(names, dist, degrees, max_time, lb, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
 
 
 def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, max_time):
@@ -100,8 +100,14 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     # Solve the sub-problem:
     cell_coords = [coords[names_to_i[v]] for v in cell_names]
     dist = l2_norm(cell_coords, delta)
-    UB = trivial_ub(n, dist)
-    status, _, solver, _, _, x_e = solve_bdhst(cell_names, dist, degrees, max_time, UB, 0, False, 'Freeze-Tag Problem')
+
+    source_radius = radius(n, n - 1, dist)
+    min_edge = min_dist(n, dist)
+    LB = max(source_radius, min_edge * ceil(log2(n)))
+    UB = trivial_ub(n, dist)  # it is not valid because there are fixed leaves
+    UB += 2 * source_radius  # account for the leaves by adding a realocation cost
+
+    status, _, solver, _, _, x_e = solve_bdhst(cell_names, dist, degrees, max_time, LB, UB, 0, False, 'Freeze-Tag Problem')
     status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
     max_time -= solver.WallTime()
     if not status:
