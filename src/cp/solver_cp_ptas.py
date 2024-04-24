@@ -33,7 +33,7 @@ print('\tSource =', source)
 d_names, d_coords, d_degrees, grid_map = discretize(names, names_to_i, coords, EPS)
 d_n = len(d_names)
 d_dist = l2_norm(d_coords, delta)
-d_UB = trivial_ub(d_n, d_dist)
+d_sol_edges, d_UB = greedy_solution(d_n - 1, d_n, d_dist, d_names)
 hop_depth = 0.0  # min(d_n - 1, ceil(log2(d_n) ** 2))
 
 # Print upper level instance info:
@@ -41,7 +41,8 @@ print('Upper level discretized BDHST information:')
 print('\tNumber of nodes =', d_n)
 print('\tHop depth =', hop_depth if hop_depth > 0 else "no limit")
 
-d_status, _, d_solver, d_depth, d_d_v, d_x_e = solve_bdhst(d_names, d_dist, d_degrees, MAX_TIME, d_UB, hop_depth, True)
+d_status, _, d_solver, d_depth, d_d_v, d_x_e = \
+    solve_bdhst(d_names, d_dist, d_degrees, MAX_TIME, 0, d_UB, hop_depth, True, 'Freeze-Tag Problem', 0, d_sol_edges)
 
 d_status = d_status == cp_model.FEASIBLE or d_status == cp_model.OPTIMAL
 if not d_status:

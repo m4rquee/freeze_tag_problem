@@ -47,6 +47,8 @@ def graph_dist(edges, names, delta):
 
 
 def greedy_solution(source, n, dist, names):
+    if n <= 1: return None, 0
+
     # Connect the source to the closest node:
     min_target = None
     min_arc_weight = float('inf')
