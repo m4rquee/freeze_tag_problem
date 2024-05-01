@@ -179,18 +179,18 @@ void Problem_Instance::view_solution(double LB, double UB, const string &msg, bo
 double greedy_solution(Problem_Instance &P, int max_degree) {
     // Connect the source to some closest node:
     Arc min_arc = INVALID;
-    int min_arc_weight = GRB_MAXINT;
+    int min_makespan = GRB_MAXINT;
     auto source = P.source != INVALID ? P.source : Digraph::nodeFromId(0);
     for (OutArcIt e(P.g, source); e != INVALID; ++e)
-        if (P.weight[e] < min_arc_weight) {
+        if (P.weight[e] < min_makespan) {
             min_arc = e;
-            min_arc_weight = P.weight[e];
+            min_makespan = P.weight[e];
         }
     P.solution[min_arc] = true;
     P.node_activation[source] = 0;
     auto target = P.g.target(min_arc);
-    P.node_activation[target] = min_arc_weight;
-    P.solution_makespan = min_arc_weight;
+    P.node_activation[target] = min_makespan;
+    P.solution_makespan = min_makespan;
 
     // Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
     DNodeIntMap degree(P.g);
@@ -205,20 +205,22 @@ double greedy_solution(Problem_Instance &P, int max_degree) {
     DNodeVector border;
     border.push_back(target);
     for (int i = 1; i < P.nnodes - 1; i++) {
-        min_arc_weight = GRB_MAXINT;
+        min_makespan = GRB_MAXINT;
         for (DNode u: border)
             for (OutArcIt e(P.g, u); e != INVALID; ++e) {
                 auto v = P.g.target(e);
-                if (degree[v] == -1)// not yet added
-                    if (P.weight[e] < min_arc_weight) {
+                if (degree[v] == -1) {// not yet added
+                    auto aux = P.node_activation[u] + P.weight[e];
+                    if (aux < min_makespan) {
                         min_arc = e;
-                        min_arc_weight = P.weight[e];
+                        min_makespan = aux;
                     }
+                }
             }
         auto u = P.g.source(min_arc), v = P.g.target(min_arc);
         P.solution[min_arc] = true;
-        P.node_activation[v] = P.node_activation[u] + min_arc_weight;
-        P.solution_makespan = max(P.solution_makespan, P.node_activation[v]);
+        P.node_activation[v] = min_makespan;
+        P.solution_makespan = max(P.solution_makespan, min_makespan);
         degree[u]++;
         if (degree[u] == max_degree - (u != source)) {// becomes saturated with max_degree-1 children
             auto aux = remove(border.begin(), border.end(), u);
