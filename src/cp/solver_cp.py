@@ -1,30 +1,34 @@
 from sys import argv
-from distutils.util import strtobool
 
-import networkx as nx
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
 from src.cp.utils import *
+from src.cp.reading import *
 from src.cp.solvers import solve_ftp
 from src.cp.plotting import plot_solution
-from src.cp.reading import read_tsplib_graph, read_dig_graph
-
 
 MAX_TIME = int(argv[1])
-TSPLIB = strtobool(argv[2]) if len(argv) > 2 else True
+TYPE = argv[2]
 
 delta = 1E-2
 
 # Setup:
-if TSPLIB:
-    names, coords = read_tsplib_graph()
-else:
-    names, coords, edges = read_dig_graph()
+if TYPE == 'tsplib_2d':
+    names, coords = read_tsplib_2d_graph()
+elif TYPE == 'tsplib_hcp':
+    names, edges = read_tsplib_hcp_graph()
+elif 'gnp' in TYPE:
+    names, edges = gnp_graph(*TYPE.split('-')[1::])
+elif 'ws' in TYPE:
+    names, edges = ws_graph(*TYPE.split('-')[1::])
+else:  # if TYPE == 'dig':
+    names, edges = read_dig_graph()
+
 n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
-if TSPLIB:
+if TYPE == 'tsplib_2d':
     dist = l2_norm(coords, delta)
 else:
     dist = graph_dist(edges, names, delta)
@@ -50,7 +54,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     print('Full FTP solution:')
     depth = solver.Value(depth)
     print(f'  solution makespan: {delta * depth:.2f}')
-    lb = solver.best_objective_bound
+    lb = solver.BestObjectiveBound()
     print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
     print(f'  d_v: (', end='')
     for v in range(n - 1):
@@ -79,14 +83,15 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
 
     # Solution plotting:
     plt.figure(figsize=(10, 6))
-
-    coords_dict = {names[i]: c for i, c in enumerate(coords)}
-    if not TSPLIB:
-        whole_graph = nx.DiGraph(edges)
-        coords_dict = nx.nx_agraph.graphviz_layout(whole_graph, prog="dot")
-        plot_solution(whole_graph, edges, coords_dict, names, node_colors, 'black', style='dotted', node_size=40)
-    plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
-
+    if TYPE != 'tsplib_2d':
+        whole_graph = nx.Graph(edges)
+        coords_dict = nx.nx_agraph.graphviz_layout(whole_graph, prog='dot')
+        plot_solution(whole_graph, edges, coords_dict, names, 'white', 'gray', style='dotted', node_size=40)
+        plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40,
+                      connectionstyle='arc3,rad=0.1')
+    else:
+        coords_dict = {names[i]: c for i, c in enumerate(coords)}
+        plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
 else:

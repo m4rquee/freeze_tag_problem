@@ -3,7 +3,8 @@ from ortools.sat.python import cp_model
 from src.cp.utils import *
 
 
-def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDHST Problem', gap=0.0, init_sol=None):
+def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDHST Problem',
+                gap=0.0, init_sol=None):
     n = len(names)
     source = names[-1]
     names_to_i = {name: i for i, name in enumerate(names)}
@@ -104,8 +105,9 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     source_radius = radius(n, n - 1, dist)
     min_edge = min_dist(n, dist)
     LB = max(source_radius, min_edge * ceil(log2(n)))
-    cell_sol_edges, UB = greedy_solution(n - 1, n, dist, cell_names)  # it is not yet valid because there are fixed leaves
-    UB += 2 * source_radius  # account for the leaves by adding a realocation cost
+    cell_sol_edges, UB = \
+        greedy_solution(n - 1, n, dist, cell_names)  # it is not yet valid because there are fixed leaves
+    UB += 2 * source_radius  # account for the leaves by adding a relocation cost
 
     status, _, solver, _, _, x_e = \
         solve_bdhst(cell_names, dist, degrees, max_time, LB, UB, 0, False, 'Freeze-Tag Problem', 0, cell_sol_edges)

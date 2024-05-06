@@ -1,15 +1,13 @@
-import networkx as nx
 from matplotlib import pyplot as plt
 
 from src.cp.utils import *
 from src.cp.plotting import plot_solution
-from src.cp.reading import read_tsplib_graph
-
+from src.cp.reading import read_tsplib_2d_graph
 
 delta = 1E-2
 
 # Setup:
-names, coords = read_tsplib_graph()
+names, coords = read_tsplib_2d_graph()
 n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}

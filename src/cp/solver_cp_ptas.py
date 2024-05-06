@@ -1,15 +1,12 @@
 from sys import argv
-from math import ceil, log2
 
-import networkx as nx
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
 from src.cp.utils import *
-from src.cp.reading import read_tsplib_graph
+from src.cp.reading import read_tsplib_2d_graph
 from src.cp.plotting import plot_solution, plot_grid
 from src.cp.solvers import solve_bdhst, solve_ftp_inner
-
 
 MAX_TIME = int(argv[1])
 EPS = float(argv[2])
@@ -17,7 +14,7 @@ TOTAL_TIME = MAX_TIME
 delta = 1E-4
 
 # Setup:
-names, coords = read_tsplib_graph()
+names, coords = read_tsplib_2d_graph()
 coords, factor = normalize(coords, EPS)
 n = len(names)
 source = names[n - 1]
