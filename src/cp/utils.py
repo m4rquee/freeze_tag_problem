@@ -4,7 +4,9 @@ from math import sqrt, floor, ceil, log2
 import numpy as np
 import networkx as nx
 from sklearn.cluster import KMeans
-import networkx.algorithms.approximation.steinertree as st
+from networkx.algorithms.approximation.steinertree import metric_closure
+
+DELTA = 1E-2  # controls the precision of distance calculations
 
 
 def radius(n, center, dist):
@@ -15,18 +17,25 @@ def radius(n, center, dist):
     return ret
 
 
-def trivial_ub(n, dist):
-    minimum_depth = ceil(log2(n))
+def trivial_ftp_ub(n, dist):
+    minimum_depth = ceil(log2(n))  # minimum depth for a balanced wake-up tree
 
     diameter = 0
     for u in range(n):
-        for v in range(n):
-            if u != v:
-                diameter = max(diameter, dist(u, v))
+        for v in range(u + 1, n):
+            diameter = max(diameter, dist(u, v))
     return diameter * minimum_depth
 
 
-def l2_norm(coords, delta):
+def min_dist(n, dist):
+    ret = float('inf')
+    for u in range(n):
+        for v in range(u + 1, n):
+            ret = min(ret, dist(u, v))
+    return ret
+
+
+def l2_norm(coords, delta=DELTA):
     @cache
     def aux(u, v):
         d = sqrt((coords[u][0] - coords[v][0]) ** 2 + (coords[u][1] - coords[v][1]) ** 2)
@@ -35,8 +44,8 @@ def l2_norm(coords, delta):
     return aux
 
 
-def graph_dist(edges, names, delta):
-    graph = st.metric_closure(nx.Graph(edges))
+def graph_dist(edges, names, delta=DELTA):
+    graph = metric_closure(nx.Graph(edges))
 
     @cache
     def aux(u, v):
@@ -49,7 +58,8 @@ def graph_dist(edges, names, delta):
 
 
 def greedy_solution(source, n, dist, names):
-    if n <= 1: return None, 0
+    # todo: optimize this function
+    if n <= 1: return [], 0
 
     # Connect the source to the closest node:
     min_target = None
@@ -155,15 +165,6 @@ def calc_depth(root, names_to_i, sol_dg):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
     return max(1 + calc_depth(v, names_to_i, sol_dg) for v in children)
-
-
-def min_dist(n, dist):
-    ret = float('inf')
-    for u in range(n):
-        for v in range(n):
-            if v == u: continue
-            ret = min(ret, dist(u, v))
-    return ret
 
 
 def spectral_clustering(graph, k, dim=2):

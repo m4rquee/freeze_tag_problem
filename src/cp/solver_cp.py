@@ -11,8 +11,6 @@ from src.cp.plotting import plot_solution, plot_solution3d
 MAX_TIME = int(argv[1])
 TYPE = argv[2]
 
-delta = 1E-2
-
 # Setup:
 if TYPE == 'tsplib_2d':
     names, coords = read_tsplib_2d_graph()
@@ -29,9 +27,9 @@ n = len(names)
 source = names[n - 1]
 names_to_i = {name: i for i, name in enumerate(names)}
 if TYPE == 'tsplib_2d':
-    dist = l2_norm(coords, delta)
+    dist = l2_norm(coords)
 else:
-    dist = graph_dist(edges, names, delta)
+    dist = graph_dist(edges, names)
 sol_edges, UB = greedy_solution(n - 1, n, dist, names)
 source_radius = radius(n, n - 1, dist)
 
@@ -40,8 +38,8 @@ print('Freeze-Tag instance information:')
 print(f'\tTime limit = {MAX_TIME}s')
 print('\tNumber of nodes =', n)
 print('\tSource =', source)
-print(f'\tSource radius = {delta * source_radius:.2f}')
-print(f'\tGreedy bound = {delta * UB:.2f}')
+print(f'\tSource radius = {DELTA * source_radius:.2f}')
+print(f'\tGreedy bound = {DELTA * UB:.2f}')
 min_edge = min_dist(n, dist)
 LB = max(source_radius, min_edge * ceil(log2(n)))
 print(f'\tInitial gap = {100 * (UB - LB) / LB:.2f}%')
@@ -53,14 +51,14 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # FTP solution:
     print('Full FTP solution:')
     depth = solver.Value(depth)
-    print(f'  solution makespan: {delta * depth:.2f}')
+    print(f'  solution makespan: {DELTA * depth:.2f}')
     lb = solver.BestObjectiveBound()
     print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
     print(f'  d_v: (', end='')
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
-        print(f'{delta * depth_v:.2f}', end=', ')
-    print(f'{delta * solver.Value(d_v[-1])})')
+        print(f'{DELTA * depth_v:.2f}', end=', ')
+    print(f'{DELTA * solver.Value(d_v[-1])})')
 
     print('  edges: ', end='')
     sol_edges = []
