@@ -1,7 +1,9 @@
 from functools import cache
 from math import sqrt, floor, ceil, log2
 
+import numpy as np
 import networkx as nx
+from sklearn.cluster import KMeans
 import networkx.algorithms.approximation.steinertree as st
 
 
@@ -162,3 +164,10 @@ def min_dist(n, dist):
             if v == u: continue
             ret = min(ret, dist(u, v))
     return ret
+
+
+def spectral_clustering(graph, k, dim=2):
+    coords_dict = nx.spectral_layout(graph, dim=dim)
+    coors_list = np.array([coords_dict[node] for node in graph.nodes])
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(coors_list)
+    return [kmeans.labels_[node] for node in graph.nodes]

@@ -6,7 +6,7 @@ from ortools.sat.python import cp_model
 from src.cp.utils import *
 from src.cp.reading import *
 from src.cp.solvers import solve_ftp
-from src.cp.plotting import plot_solution
+from src.cp.plotting import plot_solution, plot_solution3d
 
 MAX_TIME = int(argv[1])
 TYPE = argv[2]
