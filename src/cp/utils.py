@@ -1,3 +1,4 @@
+import random
 from functools import cache
 from math import sqrt, floor, ceil, log2
 
@@ -35,7 +36,48 @@ def min_dist(n, dist):
     return ret
 
 
-class Dist:
+def random_furthest_point(centers, space):
+    dist_to_center = {v: float('inf') for v in space if v not in centers}
+
+    max_dist = 0
+    for v in dist_to_center.keys():
+        for u in centers:
+            dist_to_center[v] = min(dist_to_center[v], space(u, v))
+        max_dist = max(max_dist, dist_to_center[v])
+
+    candidates = [v for v in dist_to_center.keys() if dist_to_center[v] == max_dist]
+    return random.choices(candidates)[0]
+
+
+def random_closest_center(point, centers, space):
+    dist_to_centers = {v: space(v, point) for v in centers}
+    min_center_dist = min(dist_to_centers.values())
+    candidates = [v for v in dist_to_centers.keys() if dist_to_centers[v] == min_center_dist]
+    return random.choices(candidates)[0]
+
+
+def clusters(space, centers_names):
+    cluster_map = {v: [v] for v in centers_names}
+    for v in space:
+        if v not in centers_names:
+            close_center = random_closest_center(v, centers_names, space)
+            cluster_map[close_center].append(v)
+            cluster_map[v] = cluster_map[close_center]
+    rep_degrees = [len(cluster_map[v]) for v in centers_names]
+
+    return rep_degrees, cluster_map
+
+
+def max_cluster_radius(space, centers_names, cluster_map):
+    ret = 0
+    for c in centers_names:
+        for u in cluster_map[c]:
+            for v in cluster_map[c]:
+                ret = max(ret, space(u, v))
+    return ret
+
+
+class MetricSpace:
     def __init__(self, n):
         self.n = n
         self.func = None
@@ -47,7 +89,7 @@ class Dist:
         return self.n
 
     def __getitem__(self, points):  # restrict to a sub-set of points
-        ret = Dist(len(points))
+        ret = MetricSpace(len(points))
 
         def aux(u, v):
             u, v = points[u], points[v]
@@ -56,8 +98,11 @@ class Dist:
         ret.func = aux
         return ret
 
+    def __iter__(self):
+        yield from range(self.n)
 
-class L2Norm(Dist):
+
+class L2Norm(MetricSpace):
     def __init__(self, coords, delta=DELTA):
         super().__init__(len(coords))
         self.coords = coords
@@ -71,7 +116,7 @@ class L2Norm(Dist):
         self.func = aux
 
 
-class GraphDist(Dist):
+class GraphDist(MetricSpace):
     def __init__(self, edges, delta=DELTA):
         self.graph = metric_closure(nx.Graph(edges))
         super().__init__(self.graph.number_of_nodes())
@@ -182,6 +227,19 @@ def discretize(names, coords, eps):  # the source is assumed to be the last node
     rep_degrees.insert(0, min(len(source_cell), grid_dim ** 2 - 1))
 
     return rep_names, rep_coords, rep_degrees, grid_map
+
+
+def clusterize(space: MetricSpace, eps):
+    source = 0
+    n_clusters = min(space.n, ceil(1.0 / eps))
+
+    centers_names = [source]
+    for _ in range(n_clusters - 1):
+        center = random_furthest_point(centers_names, space)
+        centers_names.append(center)
+
+    rep_degrees, cluster_map = clusters(space, centers_names)
+    return centers_names, rep_degrees, cluster_map
 
 
 def calc_height(root, sol_dg, dist):
