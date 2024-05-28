@@ -6,7 +6,7 @@ from ortools.sat.python import cp_model
 from src.cp.utils import *
 from src.cp.reading import read_tsplib_2d_graph
 from src.cp.plotting import plot_solution, plot_grid
-from src.cp.solvers import solve_bdhst, solve_ftp_inner
+from src.cp.solving.solvers import solve_bdhst, solve_ftp_inner
 
 MAX_TIME = int(argv[1])
 EPS = float(argv[2])
@@ -28,7 +28,7 @@ print('\tSource =', source)
 # Upper level discretized BDHST solving:
 d_names, d_coords, d_degrees, grid_map = discretize(names, coords, EPS)
 d_n = len(d_names)
-d_dist = l2_norm(d_coords, delta)
+d_dist = L2Norm(d_coords, delta)
 d_sol_edges, d_UB = greedy_solution(source, d_n, d_dist)
 hop_depth = 0.0  # min(d_n - 1, ceil(log2(d_n) ** 2))
 
@@ -65,11 +65,11 @@ print(f'  hop depth      : {d_hop_depth}\n')
 # Inner FTPs solving:
 MAX_TIME -= d_solver.WallTime()
 sol_edges = []
-_, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, source, coords, grid_map, delta, MAX_TIME)
+dist = L2Norm(coords, delta)
+_, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, source, dist, grid_map, delta, MAX_TIME)
 print(f'Finished solving all inner cell problems with {MAX_TIME:.1f}s out of {TOTAL_TIME:.1f}s remaining...')
 tree = nx.DiGraph(sol_edges)  # full solution tree
 
-dist = l2_norm(coords, delta)
 makespan = calc_height(source, tree, dist)
 hop_depth = calc_depth(source, tree)
 source_radius = radius(source, n, dist)

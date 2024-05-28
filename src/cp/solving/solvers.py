@@ -74,46 +74,46 @@ def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None):
     return solve_bdhst(names, dist, degrees, max_time, lb, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
 
 
-def solve_ftp_inner(sol_edges, d_tree, source, coords, grid_map, delta, max_time):
-    cell = grid_map[source]  # current cell
-    source_father = next(d_tree.predecessors(source), None)  # the father of this cell's representative
+def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, delta, max_time):
+    cluster = cluster_map[source]  # current cluster
+    source_father = next(d_tree.predecessors(source), None)  # the father of this cluster's representative
 
     # Gather the representatives for the children cells:
     leaves = []
     for child_cell_representative in d_tree.neighbors(source):
-        child_cell = grid_map[child_cell_representative]
-        rep, max_time = solve_ftp_inner(sol_edges, d_tree, child_cell[0], coords, grid_map, delta, max_time)
+        child_cell = cluster_map[child_cell_representative]
+        rep, max_time = solve_ftp_inner(sol_edges, d_tree, child_cell[0], dist, cluster_map, delta, max_time)
         leaves.append(rep)  # save the new dynamically chosen representative
 
-    cell_names = cell + leaves
-    degrees = (len(cell) - 1) * [2] + len(leaves) * [0]
+    cell_names = cluster + leaves
+    degrees = (len(cluster) - 1) * [2] + len(leaves) * [0]
 
-    # Solve the sub-problem with source_father as source to let the solver figure out the best cell representative:
-    if source_father is not None:  # this is not the root cell
+    # Solve the sub-problem with source_father as source to let the solver figure out the best cluster representative:
+    if source_father is not None:  # this is not the root cluster
         cell_names.insert(0, source_father)
         degrees.insert(0, 2)
     degrees.insert(0, 1)
     n = len(cell_names)
 
-    p = 100.0 * len(sol_edges) / (len(coords) - 1)
-    print(f'Solving inner cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
+    p = 100.0 * len(sol_edges) / (len(dist) - 1)
+    print(f'Solving inner cluster with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
 
     # Solve the sub-problem:
-    cell_coords = [coords[v] for v in cell_names]
-    dist = l2_norm(cell_coords, delta)
+    local_dist = dist[cell_names]
 
-    source_radius = radius(0, n, dist)
-    min_edge = min_dist(n, dist)
+    source_radius = radius(0, n, local_dist)
+    min_edge = min_dist(n, local_dist)
     LB = max(source_radius, min_edge * ceil(log2(n)))
-    cell_sol_edges, UB = greedy_solution(0, n, dist)  # it is not yet valid because there are fixed leaves
+    cell_sol_edges, UB = greedy_solution(0, n, local_dist)  # it is not yet valid because there are fixed leaves
     UB += 2 * source_radius  # account for the leaves by adding a relocation cost
 
     status, _, solver, _, _, x_e = \
-        solve_bdhst(cell_names, dist, degrees, max_time, LB, UB, 0, False, 'Freeze-Tag Problem', 0, cell_sol_edges)
+        solve_bdhst(cell_names, local_dist, degrees, max_time, LB, UB, 0, False, 'Freeze-Tag Problem', 0,
+                    cell_sol_edges)
     status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
     max_time -= solver.WallTime()
     if not status:
-        exit(f'\nCould not find any solution to the inner cell!')
+        exit(f'\nCould not find any solution to the inner cluster!')
 
     # Gather the sub-problem solution edges:
     new_source = None
@@ -122,9 +122,9 @@ def solve_ftp_inner(sol_edges, d_tree, source, coords, grid_map, delta, max_time
             if u == v: continue
             if solver.Value(x_e[u][v]):
                 if cell_names[u] == source_father:
-                    # Do not connect the new source to source_father, as the connection between source_father's cell and
-                    # the current one will be defined later:
-                    new_source = cell_names[v]  # this cell's new source selected by the solver
+                    # Do not connect the new source to source_father, as the connection between source_father's cluster
+                    # and the current one will be defined later:
+                    new_source = cell_names[v]  # this cluster's new source selected by the solver
                 else:
                     sol_edges.append((cell_names[u], cell_names[v]))
 

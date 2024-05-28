@@ -10,7 +10,7 @@ delta = 1E-2
 names, coords = read_tsplib_2d_graph()
 n = len(names)
 source = 0
-dist = l2_norm(coords, delta)
+dist = L2Norm(coords, delta)
 
 # Print instance info:
 print('Freeze-Tag instance information:')

@@ -35,25 +35,55 @@ def min_dist(n, dist):
     return ret
 
 
-def l2_norm(coords, delta=DELTA):
-    @cache
-    def aux(u, v):
-        d = sqrt((coords[u][0] - coords[v][0]) ** 2 + (coords[u][1] - coords[v][1]) ** 2)
-        return floor(d / delta)  # scale up so we can treat rational values as integers
+class Dist:
+    def __init__(self, n):
+        self.n = n
+        self.func = None
 
-    return aux
+    def __call__(self, u, v):
+        return self.func(u, v)
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, points):  # restrict to a sub-set of points
+        ret = Dist(len(points))
+
+        def aux(u, v):
+            u, v = points[u], points[v]
+            return self.func(u, v)
+
+        ret.func = aux
+        return ret
 
 
-def graph_dist(edges, delta=DELTA):
-    graph = metric_closure(nx.Graph(edges))
+class L2Norm(Dist):
+    def __init__(self, coords, delta=DELTA):
+        super().__init__(len(coords))
+        self.coords = coords
+        self.delta = delta
 
-    @cache
-    def aux(u, v):
-        if u == v: return 0
-        d = graph.get_edge_data(u, v)['distance']
-        return floor(d / delta)  # scale up so we can treat rational values as integers
+        @cache
+        def aux(u, v):
+            d = sqrt((self.coords[u][0] - self.coords[v][0]) ** 2 + (self.coords[u][1] - self.coords[v][1]) ** 2)
+            return floor(d / self.delta)  # scale up so we can treat rational values as integers
 
-    return aux
+        self.func = aux
+
+
+class GraphDist(Dist):
+    def __init__(self, edges, delta=DELTA):
+        self.graph = metric_closure(nx.Graph(edges))
+        super().__init__(self.graph.number_of_nodes())
+        self.delta = delta
+
+        @cache
+        def aux(u, v):
+            if u == v: return 0
+            d = self.graph.get_edge_data(u, v)['distance']
+            return floor(d / self.delta)  # scale up so we can treat rational values as integers
+
+        self.func = aux
 
 
 def greedy_solution(source, n, dist):

@@ -5,8 +5,8 @@ from ortools.sat.python import cp_model
 
 from src.cp.utils import *
 from src.cp.reading import *
-from src.cp.solvers import solve_ftp
-from src.cp.plotting import plot_solution, plot_solution3d
+from src.cp.solving.solvers import solve_ftp
+from src.cp.plotting import plot_solution
 
 MAX_TIME = int(argv[1])
 TYPE = argv[2]
@@ -26,9 +26,9 @@ else:  # if TYPE == 'dig':
 n = len(names)
 source = 0
 if TYPE == 'tsplib_2d':
-    dist = l2_norm(coords)
+    dist = L2Norm(coords)
 else:
-    dist = graph_dist(edges)
+    dist = GraphDist(edges)
 sol_edges, UB = greedy_solution(source, n, dist)
 source_radius = radius(source, n, dist)
 
