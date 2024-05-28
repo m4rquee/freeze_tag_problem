@@ -24,14 +24,13 @@ else:  # if TYPE == 'dig':
     names, edges = read_dig_graph()
 
 n = len(names)
-source = names[n - 1]
-names_to_i = {name: i for i, name in enumerate(names)}
+source = 0
 if TYPE == 'tsplib_2d':
     dist = l2_norm(coords)
 else:
-    dist = graph_dist(edges, names)
-sol_edges, UB = greedy_solution(n - 1, n, dist, names)
-source_radius = radius(n, n - 1, dist)
+    dist = graph_dist(edges)
+sol_edges, UB = greedy_solution(source, n, dist)
+source_radius = radius(source, n, dist)
 
 # Print instance info:
 print('Freeze-Tag instance information:')
@@ -63,13 +62,13 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     print('  edges: ', end='')
     sol_edges = []
     for u in range(n):
-        for v in range(n - 1):
+        for v in range(1, n):
             if u == v: continue
             if solver.Value(x_e[u][v]):
                 print(f'{names[u]}-{names[v]}; ', end='')
                 sol_edges.append((names[u], names[v]))
     tree = nx.DiGraph(sol_edges)
-    hop_depth = calc_depth(source, names_to_i, tree)
+    hop_depth = calc_depth(source, tree)
     print(f'\n  hop depth: {hop_depth}')
 
     node_colors = []
@@ -77,13 +76,13 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
         if v == source:
             node_colors.append('red')
         else:
-            node_colors.append('cyan' if solver.Value(d_v[names_to_i[v]]) == depth else 'black')
+            node_colors.append('cyan' if solver.Value(d_v[v]) == depth else 'black')
 
     # Solution plotting:
     plt.figure(figsize=(10, 6))
     if TYPE != 'tsplib_2d':
         whole_graph = nx.Graph(edges)
-        coords_dict = nx.nx_agraph.graphviz_layout(whole_graph, prog='dot')
+        coords_dict = nx.spring_layout(whole_graph)
         plot_solution(whole_graph, edges, coords_dict, names, 'white', 'gray', style='dotted', node_size=40)
         plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40,
                       connectionstyle='arc3,rad=0.1')

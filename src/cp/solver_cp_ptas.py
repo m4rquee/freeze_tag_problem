@@ -17,8 +17,7 @@ delta = 1E-4
 names, coords = read_tsplib_2d_graph()
 coords, factor = normalize(coords, EPS)
 n = len(names)
-source = names[n - 1]
-names_to_i = dict(zip(names, range(n)))
+source = 0
 
 # Print instance info:
 print('Freeze-Tag instance information:')
@@ -27,10 +26,10 @@ print('\tNumber of nodes =', n)
 print('\tSource =', source)
 
 # Upper level discretized BDHST solving:
-d_names, d_coords, d_degrees, grid_map = discretize(names, names_to_i, coords, EPS)
+d_names, d_coords, d_degrees, grid_map = discretize(names, coords, EPS)
 d_n = len(d_names)
 d_dist = l2_norm(d_coords, delta)
-d_sol_edges, d_UB = greedy_solution(d_n - 1, d_n, d_dist, d_names)
+d_sol_edges, d_UB = greedy_solution(source, d_n, d_dist)
 hop_depth = 0.0  # min(d_n - 1, ceil(log2(d_n) ** 2))
 
 # Print upper level instance info:
@@ -55,26 +54,26 @@ print(f'  solution height: {to_orig * d_depth:.2f}')
 
 d_sol_edges = []
 for u in range(d_n):
-    for v in range(d_n - 1):
+    for v in range(1, d_n):
         if u == v: continue
         if d_solver.Value(d_x_e[u][v]):
             d_sol_edges.append((d_names[u], d_names[v]))
 d_tree = nx.DiGraph(d_sol_edges)  # upper level tree
-d_hop_depth = calc_depth(source, names_to_i, d_tree)
+d_hop_depth = calc_depth(source, d_tree)
 print(f'  hop depth      : {d_hop_depth}\n')
 
 # Inner FTPs solving:
 MAX_TIME -= d_solver.WallTime()
 sol_edges = []
-_, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, MAX_TIME)
+_, MAX_TIME = solve_ftp_inner(sol_edges, d_tree, source, coords, grid_map, delta, MAX_TIME)
 print(f'Finished solving all inner cell problems with {MAX_TIME:.1f}s out of {TOTAL_TIME:.1f}s remaining...')
 tree = nx.DiGraph(sol_edges)  # full solution tree
 
 dist = l2_norm(coords, delta)
-makespan = calc_height(source, names_to_i, tree, dist)
-hop_depth = calc_depth(source, names_to_i, tree)
-source_radius = radius(n, n - 1, dist)
-d_lb = d_depth - d_hop_depth * sqrt(2)
+makespan = calc_height(source, tree, dist)
+hop_depth = calc_depth(source, tree)
+source_radius = radius(source, n, dist)
+d_lb = d_depth - d_hop_depth * sqrt(2)  # todo: only count the cells that were actually expanded
 lb = max(source_radius, d_lb)
 
 # Final solution:
@@ -91,7 +90,7 @@ print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 plt.figure(figsize=(8, 6))
 
 coords_dict = {names[i]: c for i, c in enumerate(coords)}
-# sol_edges = [(i, j) for i, j in sol_edges if coords[names_to_i[i]] != coords[names_to_i[j]]] # hide self loops
+# sol_edges = [(i, j) for i, j in sol_edges if coords[i] != coords[j]] # hide self loops
 node_colors = ['black' if source != node else 'red' for node in tree.nodes]
 plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
 plot_solution(d_tree, d_sol_edges, coords_dict, d_names, 'white', 'gray', style='dotted', node_size=10,

@@ -9,8 +9,7 @@ delta = 1E-2
 # Setup:
 names, coords = read_tsplib_2d_graph()
 n = len(names)
-source = names[n - 1]
-names_to_i = {name: i for i, name in enumerate(names)}
+source = 0
 dist = l2_norm(coords, delta)
 
 # Print instance info:
@@ -19,14 +18,14 @@ print('\tNumber of nodes =', n)
 print('\tSource =', source)
 
 # FTP solving:
-sol_edges, makespan = greedy_solution(n - 1, n, dist, names)
+sol_edges, makespan = greedy_solution(source, n, dist)
 
 print('\nGreedy FTP solution:')
 print(f'\tsolution makespan: {delta * makespan:.2f}')
 tree = nx.DiGraph(sol_edges)
-hop_depth = calc_depth(source, names_to_i, tree)
+hop_depth = calc_depth(source, tree)
 print(f'\thop depth: {hop_depth}')
-source_radius = radius(n, n - 1, dist)
+source_radius = radius(source, n, dist)
 print(f'\tsource radius: {delta * source_radius:.2f}')
 print(f'\tgap: {100 * (makespan - source_radius) / source_radius:.2f}%')
 

@@ -9,7 +9,7 @@ from networkx.algorithms.approximation.steinertree import metric_closure
 DELTA = 1E-2  # controls the precision of distance calculations
 
 
-def radius(n, center, dist):
+def radius(center, n, dist):
     ret = 0
     for v in range(n):
         if v == center: continue
@@ -44,12 +44,11 @@ def l2_norm(coords, delta=DELTA):
     return aux
 
 
-def graph_dist(edges, names, delta=DELTA):
+def graph_dist(edges, delta=DELTA):
     graph = metric_closure(nx.Graph(edges))
 
     @cache
     def aux(u, v):
-        u, v = names[u], names[v]
         if u == v: return 0
         d = graph.get_edge_data(u, v)['distance']
         return floor(d / delta)  # scale up so we can treat rational values as integers
@@ -57,7 +56,7 @@ def graph_dist(edges, names, delta=DELTA):
     return aux
 
 
-def greedy_solution(source, n, dist, names):
+def greedy_solution(source, n, dist):
     # todo: optimize this function
     if n <= 1: return [], 0
 
@@ -71,7 +70,7 @@ def greedy_solution(source, n, dist, names):
             min_target = v
             min_arc_weight = aux
     node_activation = {source: 0, min_target: min_arc_weight}
-    sol_edges = [(names[source], names[min_target])]
+    sol_edges = [(source, min_target)]
     makespan = min_arc_weight
 
     # Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
@@ -92,7 +91,7 @@ def greedy_solution(source, n, dist, names):
                         min_arc = (u, v)
                         min_makespan = aux
         u, v = min_arc
-        sol_edges.append((names[u], names[v]))
+        sol_edges.append((u, v))
         node_activation[v] = min_makespan
         makespan = max(makespan, min_makespan)
         degree[u] += 1
@@ -119,11 +118,11 @@ def normalize(coords, eps):
     return [(factor * x, factor * y) for x, y in zip(xs, ys)], factor
 
 
-def discretize(names, name_to_i, coords, eps):  # the source is assumed to be the last node
+def discretize(names, coords, eps):  # the source is assumed to be the last node
     grid_dim = ceil(1.0 / eps)
     grid = [[[] for _ in range(grid_dim)] for _ in range(grid_dim)]
 
-    source = names[-1]
+    source = 0
     for v, (x, y) in zip(names, coords):
         if v == source:
             grid[floor(x)][floor(y)].insert(0, source)  # make sure the source is a representative
@@ -144,27 +143,27 @@ def discretize(names, name_to_i, coords, eps):  # the source is assumed to be th
                 continue
 
             rep_names.append(cell[0])
-            rep_coords.append(coords[name_to_i[cell[0]]])
+            rep_coords.append(coords[cell[0]])
             rep_degrees.append(min(len(cell) + 1, grid_dim ** 2 - 1))
 
     # Make the whole instance source the representatives source also:
-    rep_names.append(source)
-    rep_coords.append(coords[-1])
-    rep_degrees.append(min(len(source_cell), grid_dim ** 2 - 1))
+    rep_names.insert(0, source)
+    rep_coords.insert(0, coords[source])
+    rep_degrees.insert(0, min(len(source_cell), grid_dim ** 2 - 1))
 
     return rep_names, rep_coords, rep_degrees, grid_map
 
 
-def calc_height(root, names_to_i, sol_dg, dist):
+def calc_height(root, sol_dg, dist):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
-    return max(dist(names_to_i[root], names_to_i[v]) + calc_height(v, names_to_i, sol_dg, dist) for v in children)
+    return max(dist(root, v) + calc_height(v, sol_dg, dist) for v in children)
 
 
-def calc_depth(root, names_to_i, sol_dg):
+def calc_depth(root, sol_dg):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
-    return max(1 + calc_depth(v, names_to_i, sol_dg) for v in children)
+    return max(1 + calc_depth(v, sol_dg) for v in children)
 
 
 def spectral_clustering(graph, k, dim=2):

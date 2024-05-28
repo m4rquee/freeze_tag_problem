@@ -6,47 +6,47 @@ from src.cp.utils import *
 def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDHST Problem',
                 gap=0.0, init_sol=None):
     n = len(names)
-    source = names[-1]
-    names_to_i = {name: i for i, name in enumerate(names)}
+    source = 0
 
     # Model creation:
     model = cp_model.CpModel()
 
     # Creates the variables:
-    d_v = [model.NewIntVar(0, ub, f'd_{names[i]}') for i in range(n - 1)] + \
-          [model.NewIntVar(0, 0, f'd_{source}')]
-    x_e = [[model.NewBoolVar(f'x_({names[u]},{names[v]})') if v != u else None for v in range(n - 1)]
+    d_v = [model.NewIntVar(0, 0, f'd_{source}')] + \
+          [model.NewIntVar(0, ub, f'd_{names[i]}') for i in range(1, n)]
+
+    x_e = [[0] + [model.NewBoolVar(f'x_({names[u]},{names[v]})') if v != u else 0 for v in range(1, n)]
            for u in range(n)]
     depth = model.NewIntVar(lb, ub, 'depth')
 
     # Creates the constraints:
-    out_degree_sum = sum(x_e[-1])
-    model.Add(out_degree_sum <= degrees[-1])
+    out_degree_sum = sum(x_e[source])
+    model.Add(out_degree_sum <= degrees[source])
     model.Add(out_degree_sum >= 1)  # the out-degree of the root is at least one
     # the in-degree of the root is zero (there is no in-arc variable for the source)
 
     model.AddMaxEquality(depth, d_v)  # the depth of the tree is the maximum of the depth of each of its nodes
 
     # The in-degree is one and the out-degree is at most degree[v] for each internal node v:
-    for v in range(n - 1):
-        out_degree_sum = sum(uv for uv in x_e[v] if uv is not None)
+    for v in range(1, n):
+        out_degree_sum = sum(x_e[v])
         model.Add(out_degree_sum <= degrees[v])  # the out-degree is at most degree[v] for each internal node v
-        model.Add(sum(x_e[j][v] for j in range(n) if j != v) == 1)  # the in-degree of internal nodes is one
+        model.Add(sum(x_e[u][v] for u in range(n)) == 1)  # the in-degree of internal nodes is one
 
     # A node depth is its parents depth plus the edge to it:
-    for v in range(n - 1):
+    for v in range(1, n):
         for u in range(n):
             if u == v:  continue
             model.Add(d_v[v] == d_v[u] + dist(u, v)).OnlyEnforceIf(x_e[u][v])
             # Additional lb restriction to help the solver:
-            model.Add(d_v[v] >= dist(-1, u) + dist(u, v)).OnlyEnforceIf(x_e[u][v])
+            model.Add(d_v[v] >= dist(source, u) + dist(u, v)).OnlyEnforceIf(x_e[u][v])
 
     if hop_depth > 0:  # should control the hop depth
-        hop_d_v = [model.NewIntVar(0, hop_depth, f'hop_d_{names[i]}') for i in range(n - 1)] + \
-                  [model.NewIntVar(0, 0, f'hop_d_{source}')]
+        hop_d_v = [model.NewIntVar(0, 0, f'hop_d_{source}')] + \
+                  [model.NewIntVar(0, hop_depth, f'hop_d_{names[i]}') for i in range(1, n)]
 
         # A node hop depth is its parents hop depth plus one:
-        for v in range(n - 1):
+        for v in range(1, n):
             for u in range(n):
                 if u == v:  continue
                 model.Add(hop_d_v[v] == hop_d_v[u] + 1).OnlyEnforceIf(x_e[u][v])
@@ -54,7 +54,7 @@ def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth
     # Provides a warm start to the solver:
     if init_sol is not None:
         for u, v in init_sol:
-            model.AddHint(x_e[names_to_i[u]][names_to_i[v]], 1)
+            model.AddHint(x_e[u][v], 1)
 
     # Creates a solver and solves the model:
     model.Minimize(depth)
@@ -70,11 +70,11 @@ def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth
 
 
 def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None):
-    degrees = (len(names) - 1) * [2] + [1]
+    degrees = [1] + (len(names) - 1) * [2]
     return solve_bdhst(names, dist, degrees, max_time, lb, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
 
 
-def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, delta, max_time):
+def solve_ftp_inner(sol_edges, d_tree, source, coords, grid_map, delta, max_time):
     cell = grid_map[source]  # current cell
     source_father = next(d_tree.predecessors(source), None)  # the father of this cell's representative
 
@@ -82,31 +82,30 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     leaves = []
     for child_cell_representative in d_tree.neighbors(source):
         child_cell = grid_map[child_cell_representative]
-        rep, max_time = solve_ftp_inner(sol_edges, d_tree, names_to_i, child_cell[0], coords, grid_map, delta, max_time)
+        rep, max_time = solve_ftp_inner(sol_edges, d_tree, child_cell[0], coords, grid_map, delta, max_time)
         leaves.append(rep)  # save the new dynamically chosen representative
 
-    cell_names = leaves + cell[::-1]  # the source will be the last node
-    degrees = len(leaves) * [0] + (len(cell) - 1) * [2]
+    cell_names = cell + leaves
+    degrees = (len(cell) - 1) * [2] + len(leaves) * [0]
 
     # Solve the sub-problem with source_father as source to let the solver figure out the best cell representative:
     if source_father is not None:  # this is not the root cell
-        cell_names.append(source_father)
-        degrees.append(2)
-    degrees.append(1)
+        cell_names.insert(0, source_father)
+        degrees.insert(0, 2)
+    degrees.insert(0, 1)
     n = len(cell_names)
 
     p = 100.0 * len(sol_edges) / (len(coords) - 1)
     print(f'Solving inner cell with {n} points - {p:.2f}% done with {max_time:.1f}s remaining...', end='\r')
 
     # Solve the sub-problem:
-    cell_coords = [coords[names_to_i[v]] for v in cell_names]
+    cell_coords = [coords[v] for v in cell_names]
     dist = l2_norm(cell_coords, delta)
 
-    source_radius = radius(n, n - 1, dist)
+    source_radius = radius(0, n, dist)
     min_edge = min_dist(n, dist)
     LB = max(source_radius, min_edge * ceil(log2(n)))
-    cell_sol_edges, UB = \
-        greedy_solution(n - 1, n, dist, cell_names)  # it is not yet valid because there are fixed leaves
+    cell_sol_edges, UB = greedy_solution(0, n, dist)  # it is not yet valid because there are fixed leaves
     UB += 2 * source_radius  # account for the leaves by adding a relocation cost
 
     status, _, solver, _, _, x_e = \
@@ -119,7 +118,7 @@ def solve_ftp_inner(sol_edges, d_tree, names_to_i, source, coords, grid_map, del
     # Gather the sub-problem solution edges:
     new_source = None
     for u in range(n):
-        for v in range(n - 1):
+        for v in range(1, n):
             if u == v: continue
             if solver.Value(x_e[u][v]):
                 if cell_names[u] == source_father:
