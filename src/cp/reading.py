@@ -48,7 +48,7 @@ def gnp_graph(n, p, max_iter=1000):
     p = float(p)
     graph = None
     for _ in range(max_iter):
-        aux = nx.erdos_renyi_graph(n, p)
+        aux = nx.fast_gnp_random_graph(n, p, seed=42)
         if nx.is_connected(aux):
             graph = aux
             break
@@ -61,4 +61,18 @@ def ws_graph(n, k, p):
     p = float(p)
     k = int(k)
     aux = nx.connected_watts_strogatz_graph(n, k, p)
+    return list(aux.nodes), list(aux.edges)
+
+
+def tree_graph(r, h):
+    r = int(r)
+    h = int(h)
+    aux = nx.balanced_tree(r, h)
+    return list(aux.nodes), list(aux.edges)
+
+
+def regular_graph(d, n):
+    d = int(d)
+    n = int(n)
+    aux = nx.random_regular_graph(d, n)
     return list(aux.nodes), list(aux.edges)

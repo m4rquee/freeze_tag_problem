@@ -21,6 +21,10 @@ elif 'gnp' in TYPE:
     names, edges = gnp_graph(*TYPE.split('-')[1::])
 elif 'ws' in TYPE:
     names, edges = ws_graph(*TYPE.split('-')[1::])
+elif 'tree' in TYPE:
+    names, edges = tree_graph(*TYPE.split('-')[1::])
+elif 'regular' in TYPE:
+    names, edges = regular_graph(*TYPE.split('-')[1::])
 else:  # if TYPE == 'dig':
     names, edges = read_dig_graph()
 
@@ -88,6 +92,7 @@ print('\nFreeze-Tag solution:')
 print(f'  number of nodes  : {n}')
 print(f'  solution makespan: {delta * makespan:.2f}')
 print(f'  source radius    : {delta * source_radius:.2f}')
+print(f'  max cluster size : {delta * biggest_cell:.2f}')
 print(f'  d_lower bound    : {delta * d_lb:.2f}')
 print(f'  gap              : {100 * (makespan - lb) / lb:.2f}%')
 print(f'  hop depth        : {hop_depth}')
@@ -96,12 +101,21 @@ print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 # Solution plotting:
 plt.figure(figsize=(10, 6))
 
-whole_graph = nx.Graph(edges)
-coords_dict = nx.nx_agraph.graphviz_layout(whole_graph, prog='dot')
-node_colors = ['black' if source != node else 'red' for node in tree.nodes]
-plot_solution(whole_graph, edges, coords_dict, names, 'white', 'gray', style='dotted', node_size=40)
-plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
-plot_solution(d_tree, d_sol_edges, coords_dict, d_names, 'white', 'pink', style='dotted', node_size=10,
+whole_graph = nx.empty_graph(n)
+whole_graph.add_edges_from(edges)
+coords_dict = nx.spring_layout(whole_graph)
+
+# Full solution:
+plot_solution(tree, coords_dict, 'White', 'green', style='solid', node_size=100,
+              connectionstyle='arc3,rad=0.15', with_labels=True, verticalalignment='bottom')
+
+# Domain graph:
+node_colors = [cluster_map[v][0] for v in range(n)]
+plot_solution(whole_graph, coords_dict, node_colors, 'black', style='dotted', node_size=100)
+
+# Upper level solution:
+node_colors = ['white' if source != node else 'red' for node in d_names]
+plot_solution(d_tree, coords_dict, node_colors, 'red', style='dotted', node_size=25,
               connectionstyle='arc3,rad=0.1')
 
 plt.gca().set_aspect('equal', adjustable='box')

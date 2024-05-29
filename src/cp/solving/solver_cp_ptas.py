@@ -93,8 +93,8 @@ plt.figure(figsize=(8, 6))
 coords_dict = {names[i]: c for i, c in enumerate(coords)}
 # sol_edges = [(i, j) for i, j in sol_edges if coords[i] != coords[j]] # hide self loops
 node_colors = ['black' if source != node else 'red' for node in tree.nodes]
-plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
-plot_solution(d_tree, d_sol_edges, coords_dict, d_names, 'white', 'gray', style='dotted', node_size=10,
+plot_solution(tree, sol_edges, coords_dict, node_colors, 'green', style='solid', node_size=40)
+plot_solution(d_tree, d_sol_edges, coords_dict, 'white', 'gray', style='dotted', node_size=10,
               connectionstyle='arc3,rad=0.1')
 
 plot_grid(EPS)

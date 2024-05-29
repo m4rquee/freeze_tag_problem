@@ -34,7 +34,7 @@ plt.figure(figsize=(10, 6))
 
 node_colors = ['black' if source != node else 'red' for node in tree.nodes]
 coords_dict = {names[i]: c for i, c in enumerate(coords)}
-plot_solution(tree, sol_edges, coords_dict, names, node_colors, 'green', style='solid', node_size=40)
+plot_solution(tree, coords_dict, node_colors, 'green', style='solid', node_size=40)
 
 plt.gca().set_aspect('equal', adjustable='box')
 plt.show()
