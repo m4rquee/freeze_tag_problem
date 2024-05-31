@@ -45,6 +45,7 @@ print(f'\tSource radius = {DELTA * source_radius:.2f}')
 print(f'\tGreedy bound = {DELTA * UB:.2f}')
 min_edge = min_dist(n, dist)
 LB = max(source_radius, min_edge * ceil(log2(n)))
+print(f'\tStart lower bound = {DELTA * LB:.2f}')
 print(f'\tInitial gap = {100 * (UB - LB) / LB:.2f}%')
 
 # FTP solving:
@@ -57,6 +58,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     print(f'  solution makespan: {DELTA * depth:.2f}')
     lb = solver.BestObjectiveBound()
     print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
+    print(f'  greedy gap: {100 * (UB - LB) / LB:.2f}%')
     print(f'  d_v: (', end='')
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])

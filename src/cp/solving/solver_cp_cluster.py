@@ -31,11 +31,13 @@ else:  # if TYPE == 'dig':
 n = len(names)
 source = 0
 space = GraphDist(edges, delta)  # the underlying graph metric space
+_, UB = greedy_solution(source, n, space)
 
 # Print instance info:
 print('Freeze-Tag instance information:')
 print(f'\tTime limit = {MAX_TIME}s')
 print('\tNumber of nodes =', n)
+print('\tNumber of edges =', len(edges))
 print('\tSource =', source)
 
 # Upper level discretized BDHST solving:
@@ -85,16 +87,20 @@ hop_depth = calc_depth(source, tree)
 source_radius = radius(source, n, space)
 biggest_cell = max_cluster_radius(space, d_names, cluster_map)
 d_lb = d_depth - d_hop_depth * biggest_cell  # todo: only count the cells that were actually expanded
-lb = max(source_radius, d_lb)
+min_edge = min_dist(n, space)
+lb = max(source_radius, d_lb, min_edge * ceil(log2(n)))
 
 # Final solution:
 print('\nFreeze-Tag solution:')
 print(f'  number of nodes  : {n}')
+print(f'  number of edges  : {len(edges)}')
 print(f'  solution makespan: {delta * makespan:.2f}')
 print(f'  source radius    : {delta * source_radius:.2f}')
 print(f'  max cluster size : {delta * biggest_cell:.2f}')
 print(f'  d_lower bound    : {delta * d_lb:.2f}')
+print(f'  final lb bound   : {delta * lb:.2f}')
 print(f'  gap              : {100 * (makespan - lb) / lb:.2f}%')
+print(f'  greedy gap       : {100 * (UB - lb) / lb:.2f}%')
 print(f'  hop depth        : {hop_depth}')
 print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 

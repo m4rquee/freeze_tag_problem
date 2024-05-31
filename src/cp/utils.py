@@ -68,6 +68,20 @@ def clusters(space, centers_names):
     return rep_degrees, cluster_map
 
 
+def partition(space, labels):
+    parts = {l: [] for l in labels}
+    for v, l in enumerate(labels):
+        parts[l].append(v)
+
+    centers_names, rep_degrees, cluster_map = [], [], {}
+    for l, part in parts.items():
+        part.sort()
+        centers_names.append(part[0])
+        rep_degrees.append(len(part))
+        for v in part: cluster_map[v] = part
+    return centers_names, rep_degrees, cluster_map
+
+
 def max_cluster_radius(space, centers_names, cluster_map):
     ret = 0
     for c in centers_names:
@@ -229,7 +243,7 @@ def discretize(names, coords, eps):  # the source is assumed to be the last node
     return rep_names, rep_coords, rep_degrees, grid_map
 
 
-def clusterize(space: MetricSpace, eps):
+def k_center_clustering(space: MetricSpace, eps):
     source = 0
     n_clusters = min(space.n, ceil(1.0 / eps))
 
@@ -242,6 +256,23 @@ def clusterize(space: MetricSpace, eps):
     return centers_names, rep_degrees, cluster_map
 
 
+def spectral_clustering(space: GraphDist, eps):
+    n_clusters = min(space.n, ceil(1.0 / eps))
+    coords_dict = nx.spectral_layout(space.graph, dim=3)
+    coors_list = [coords_dict[node] for node in space.graph.nodes]
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(coors_list)
+
+    centers_names, rep_degrees, cluster_map = partition(space, kmeans.labels_)
+    return centers_names, rep_degrees, cluster_map
+
+
+def clusterize(space: MetricSpace, eps, method='k_center'):
+    if method == 'spectral':
+        return spectral_clustering(space, eps)
+    elif method == 'k_center':
+        return k_center_clustering(space, eps)
+
+
 def calc_height(root, sol_dg, dist):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
@@ -252,10 +283,3 @@ def calc_depth(root, sol_dg):
     children = list(sol_dg.neighbors(root))
     if len(children) == 0: return 0
     return max(1 + calc_depth(v, sol_dg) for v in children)
-
-
-def spectral_clustering(graph, k, dim=2):
-    coords_dict = nx.spectral_layout(graph, dim=dim)
-    coors_list = np.array([coords_dict[node] for node in graph.nodes])
-    kmeans = KMeans(n_clusters=k, random_state=0).fit(coors_list)
-    return [kmeans.labels_[node] for node in graph.nodes]

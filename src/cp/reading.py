@@ -1,3 +1,4 @@
+from math import log
 import networkx as nx
 
 
@@ -45,10 +46,10 @@ def read_tsplib_hcp_graph():
 
 def gnp_graph(n, p, max_iter=1000):
     n = int(n)
-    p = float(p)
+    p = float(p)  # 2 * log(n) / n
     graph = None
     for _ in range(max_iter):
-        aux = nx.fast_gnp_random_graph(n, p, seed=42)
+        aux = nx.fast_gnp_random_graph(n, p)
         if nx.is_connected(aux):
             graph = aux
             break
