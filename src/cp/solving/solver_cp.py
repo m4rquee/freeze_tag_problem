@@ -32,7 +32,7 @@ source = 0
 if TYPE == 'tsplib_2d':
     dist = L2Norm(coords)
 else:
-    dist = GraphDist(edges)
+    dist = GraphDist(n, edges)
 sol_edges, UB = greedy_solution(source, n, dist)
 source_radius = radius(source, n, dist)
 
@@ -87,9 +87,8 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # Solution plotting:
     plt.figure(figsize=(10, 6))
     if TYPE != 'tsplib_2d':
-        whole_graph = nx.Graph(edges)
-        coords_dict = nx.nx_agraph.graphviz_layout(whole_graph, prog='dot')
-        plot_solution(whole_graph, coords_dict, 'white', 'gray', style='dotted', node_size=40)
+        coords_dict = nx.nx_agraph.graphviz_layout(dist.original_graph, prog='dot')
+        plot_solution(dist.original_graph, coords_dict, 'white', 'gray', style='dotted', node_size=40)
         plot_solution(tree, coords_dict, node_colors, 'green', style='solid', node_size=40,
                       connectionstyle='arc3,rad=0.1')
     else:

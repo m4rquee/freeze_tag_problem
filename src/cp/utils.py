@@ -4,10 +4,11 @@ from math import sqrt, floor, ceil, log2
 
 import numpy as np
 import networkx as nx
-from sklearn.cluster import KMeans
+from sklearn import cluster
 from networkx.algorithms.approximation.steinertree import metric_closure
 
 DELTA = 1E-2  # controls the precision of distance calculations
+# random.seed(42)
 
 
 def radius(center, n, dist):
@@ -63,9 +64,18 @@ def clusters(space, centers_names):
             close_center = random_closest_center(v, centers_names, space)
             cluster_map[close_center].append(v)
             cluster_map[v] = cluster_map[close_center]
-    rep_degrees = [len(cluster_map[v]) for v in centers_names]
 
-    return rep_degrees, cluster_map
+    # Make point zero the center of its own cluster:
+    centers_names.remove(cluster_map[0][0])  # remove the previous center
+    centers_names.append(0)
+    centers_names.sort()
+    cluster_map[0].sort()
+
+    rep_degrees = [min(len(cluster_map[0]), space.n - 1)]
+    for v in centers_names[1:]:
+        rep_degrees.append(min(len(cluster_map[v]) + 1, space.n - 1))
+
+    return centers_names, rep_degrees, cluster_map
 
 
 def partition(space, labels):
@@ -73,12 +83,22 @@ def partition(space, labels):
     for v, l in enumerate(labels):
         parts[l].append(v)
 
-    centers_names, rep_degrees, cluster_map = [], [], {}
+    centers_names, cluster_map = [], {}
     for l, part in parts.items():
         part.sort()
         centers_names.append(part[0])
-        rep_degrees.append(len(part))
         for v in part: cluster_map[v] = part
+
+    # Make point zero the center of its own cluster:
+    centers_names.remove(cluster_map[0][0])  # remove the previous center
+    centers_names.append(0)
+    centers_names.sort()
+    cluster_map[0].sort()
+
+    rep_degrees = [min(len(cluster_map[0]), space.n - 1)]
+    for v in centers_names[1:]:
+        rep_degrees.append(min(len(cluster_map[v]) + 1, space.n - 1))
+
     return centers_names, rep_degrees, cluster_map
 
 
@@ -131,9 +151,11 @@ class L2Norm(MetricSpace):
 
 
 class GraphDist(MetricSpace):
-    def __init__(self, edges, delta=DELTA):
-        self.graph = metric_closure(nx.Graph(edges))
-        super().__init__(self.graph.number_of_nodes())
+    def __init__(self, n, edges, delta=DELTA):
+        super().__init__(n)
+        self.original_graph = nx.empty_graph(n)  # create an empty graph first to preserve node order
+        self.original_graph.add_edges_from(edges)
+        self.graph = metric_closure(self.original_graph)
         self.delta = delta
 
         @cache
@@ -252,7 +274,7 @@ def k_center_clustering(space: MetricSpace, eps):
         center = random_furthest_point(centers_names, space)
         centers_names.append(center)
 
-    rep_degrees, cluster_map = clusters(space, centers_names)
+    _, rep_degrees, cluster_map = clusters(space, centers_names)
     return centers_names, rep_degrees, cluster_map
 
 
@@ -260,17 +282,44 @@ def spectral_clustering(space: GraphDist, eps):
     n_clusters = min(space.n, ceil(1.0 / eps))
     coords_dict = nx.spectral_layout(space.graph, dim=3)
     coors_list = [coords_dict[node] for node in space.graph.nodes]
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(coors_list)
+    kmeans = cluster.KMeans(n_clusters=n_clusters).fit(coors_list)
 
     centers_names, rep_degrees, cluster_map = partition(space, kmeans.labels_)
     return centers_names, rep_degrees, cluster_map
 
 
-def clusterize(space: MetricSpace, eps, method='k_center'):
+def graph_to_edge_matrix(graph):
+    edge_mat = np.zeros((len(graph), len(graph)), dtype=int)
+    for u in graph:
+        for v in graph.neighbors(u):
+            edge_mat[u][v] = 1
+        edge_mat[u][u] = 1
+    return edge_mat
+
+
+def k_means_clustering(space: GraphDist, eps):
+    edge_mat = graph_to_edge_matrix(space.original_graph)
+    n_clusters = min(space.n, ceil(1.0 / eps))
+    kmeans = cluster.KMeans(n_clusters=n_clusters).fit(edge_mat)
+
+    centers_names = []
+    for label, c in enumerate(kmeans.cluster_centers_):
+        cluster_nodes = np.argwhere(kmeans.labels_ == label)
+        best_center_pos = np.argmax(c[cluster_nodes])
+        best_center = cluster_nodes[best_center_pos]
+        centers_names.append(int(best_center))
+
+    centers_names, rep_degrees, cluster_map = clusters(space, centers_names)
+    return centers_names, rep_degrees, cluster_map
+
+
+def clusterize(space: MetricSpace, eps, method='k_means'):
     if method == 'spectral':
         return spectral_clustering(space, eps)
     elif method == 'k_center':
         return k_center_clustering(space, eps)
+    elif method == 'k_means':
+        return k_means_clustering(space, eps)
 
 
 def calc_height(root, sol_dg, dist):

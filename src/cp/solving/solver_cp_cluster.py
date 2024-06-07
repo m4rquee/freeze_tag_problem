@@ -30,7 +30,7 @@ else:  # if TYPE == 'dig':
 
 n = len(names)
 source = 0
-space = GraphDist(edges, delta)  # the underlying graph metric space
+space = GraphDist(n, edges, delta)  # the underlying graph metric space
 _, UB = greedy_solution(source, n, space)
 
 # Print instance info:
@@ -106,10 +106,7 @@ print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 
 # Solution plotting:
 plt.figure(figsize=(10, 6))
-
-whole_graph = nx.empty_graph(n)
-whole_graph.add_edges_from(edges)
-coords_dict = nx.spring_layout(whole_graph)
+coords_dict = nx.nx_agraph.graphviz_layout(space.original_graph, prog='dot')  # nx.spring_layout(space.original_graph)
 
 # Full solution:
 plot_solution(tree, coords_dict, 'White', 'green', style='solid', node_size=100,
@@ -117,7 +114,7 @@ plot_solution(tree, coords_dict, 'White', 'green', style='solid', node_size=100,
 
 # Domain graph:
 node_colors = [cluster_map[v][0] for v in range(n)]
-plot_solution(whole_graph, coords_dict, node_colors, 'black', style='dotted', node_size=100)
+plot_solution(space.original_graph, coords_dict, node_colors, 'black', style='dotted', node_size=100)
 
 # Upper level solution:
 node_colors = ['white' if source != node else 'red' for node in d_names]
