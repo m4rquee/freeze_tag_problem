@@ -25,6 +25,8 @@ elif 'tree' in TYPE:
     names, edges = tree_graph(*TYPE.split('-')[1::])
 elif 'regular' in TYPE:
     names, edges = regular_graph(*TYPE.split('-')[1::])
+elif 'lobster' in TYPE:
+    names, edges = lobster_graph(*TYPE.split('-')[1::])
 else:  # if TYPE == 'dig':
     names, edges = read_dig_graph()
 
@@ -106,7 +108,7 @@ print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 
 # Solution plotting:
 plt.figure(figsize=(10, 6))
-coords_dict = nx.nx_agraph.graphviz_layout(space.original_graph, prog='dot')  # nx.spring_layout(space.original_graph)
+coords_dict = nx.spring_layout(space.original_graph)  # nx.nx_agraph.graphviz_layout(space.original_graph, prog='dot')
 
 # Full solution:
 plot_solution(tree, coords_dict, 'White', 'green', style='solid', node_size=100,

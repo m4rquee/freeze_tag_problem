@@ -77,3 +77,25 @@ def regular_graph(d, n):
     n = int(n)
     aux = nx.random_regular_graph(d, n)
     return list(aux.nodes), list(aux.edges)
+
+
+def lobster_graph(n, p1, p2):
+    n = int(n)
+    p1 = float(p1)
+    p2 = float(p2)
+    aux = nx.random_lobster(n, p1, p2)
+    return list(aux.nodes), list(aux.edges)
+
+
+def combine_graphs(g, h):
+    prod = nx.empty_graph(len(g) * len(h))
+    i = 0
+    for e in g.edges:
+        prod.add_edge(e[0] * len(h) + i, e[1] * len(h) + i)
+        i = (i + 1) % len(h)
+        # for v in h:
+        #     prod.add_edge(e[0] * len(h) + v, e[1] * len(h) + v)
+    for e in h.edges:
+        for v in g:
+            prod.add_edge(v * len(h) + e[0], v * len(h) + e[1])
+    return list(prod.nodes), list(prod.edges)

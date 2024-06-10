@@ -24,6 +24,8 @@ elif 'tree' in TYPE:
     names, edges = tree_graph(*TYPE.split('-')[1::])
 elif 'regular' in TYPE:
     names, edges = regular_graph(*TYPE.split('-')[1::])
+elif 'lobster' in TYPE:
+    names, edges = lobster_graph(*TYPE.split('-')[1::])
 else:  # if TYPE == 'dig':
     names, edges = read_dig_graph()
 
