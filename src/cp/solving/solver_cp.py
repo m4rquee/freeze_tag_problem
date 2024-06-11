@@ -4,31 +4,19 @@ from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
 from src.cp.utils.utils import *
-from src.cp.utils.reading import *
+from src.cp.utils.instance import *
+from src.cp.utils.cli import read_arguments
 from src.cp.solving.solvers import solve_ftp
 from src.cp.utils.plotting import plot_graph
 
-MAX_TIME = int(argv[1])
+
+MAX_TIME, TYPE = read_arguments(int, str)
 TYPE = argv[2]
 
-# Setup:
 if TYPE == 'tsplib_2d':
     names, coords = read_tsplib_2d_graph()
-elif TYPE == 'tsplib_hcp':
-    names, edges = read_tsplib_hcp_graph()
-elif 'gnp' in TYPE:
-    names, edges = gnp_graph(*TYPE.split('-')[1::])
-elif 'ws' in TYPE:
-    names, edges = ws_graph(*TYPE.split('-')[1::])
-elif 'tree' in TYPE:
-    names, edges = tree_graph(*TYPE.split('-')[1::])
-elif 'regular' in TYPE:
-    names, edges = regular_graph(*TYPE.split('-')[1::])
-elif 'lobster' in TYPE:
-    names, edges = lobster_graph(*TYPE.split('-')[1::])
-else:  # if TYPE == 'dig':
-    names, edges = read_dig_graph()
-
+else:
+    names, edges = get_instance(TYPE)
 n = len(names)
 source = 0
 if TYPE == 'tsplib_2d':
@@ -89,7 +77,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # Solution plotting:
     plt.figure(figsize=(10, 6))
     if TYPE != 'tsplib_2d':
-        coords_dict = nx.spectral_layout(dist.original_graph, dim=2)
+        coords_dict = nx.nx_agraph.graphviz_layout(dist.original_graph, prog='dot')  # nx.spectral_layout(dist.original_graph, dim=2)
         plot_graph(dist.original_graph, coords_dict, 'white', 'gray', style='dotted', node_size=40)
         plot_graph(tree, coords_dict, node_colors, 'green', style='solid', node_size=40,
                       connectionstyle='arc3,rad=0.1')

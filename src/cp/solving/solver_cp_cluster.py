@@ -1,35 +1,18 @@
-from sys import argv
-
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
 from src.cp.utils.utils import *
-from src.cp.utils.reading import *
+from src.cp.utils.cli import read_arguments
 from src.cp.utils.plotting import plot_graph
+from src.cp.utils.instance import get_instance
 from src.cp.solving.solvers import solve_bdhst, solve_ftp_inner
 
-MAX_TIME = int(argv[1])
-EPS = float(argv[2])
-TYPE = argv[3]
+
+MAX_TIME, EPS, TYPE = read_arguments(int, float, str)
 TOTAL_TIME = MAX_TIME
 delta = 1E-4
 
-# Setup:
-if TYPE == 'tsplib_hcp':
-    names, edges = read_tsplib_hcp_graph()
-elif 'gnp' in TYPE:
-    names, edges = gnp_graph(*TYPE.split('-')[1::])
-elif 'ws' in TYPE:
-    names, edges = ws_graph(*TYPE.split('-')[1::])
-elif 'tree' in TYPE:
-    names, edges = tree_graph(*TYPE.split('-')[1::])
-elif 'regular' in TYPE:
-    names, edges = regular_graph(*TYPE.split('-')[1::])
-elif 'lobster' in TYPE:
-    names, edges = lobster_graph(*TYPE.split('-')[1::])
-else:  # if TYPE == 'dig':
-    names, edges = read_dig_graph()
-
+names, edges = get_instance(TYPE)
 n = len(names)
 source = 0
 space = GraphDist(n, edges, delta)  # the underlying graph metric space

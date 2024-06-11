@@ -97,3 +97,15 @@ def combine_graphs(g, h, k=1):
         for v in g:
             prod.add_edge(v * len(h) + e[0], v * len(h) + e[1])
     return list(prod.nodes), list(prod.edges(data=True))
+
+
+def get_instance(instance_type):
+    instance, *args = instance_type.split('-')
+    match instance:
+        case 'tsplib_hcp': return read_tsplib_hcp_graph()
+        case 'gnp': return gnp_graph(*args)
+        case 'ws': return ws_graph(*args)
+        case 'tree': return tree_graph(*args)
+        case 'regular': return regular_graph(*args)
+        case 'lobster': return lobster_graph(*args)
+        case _: return read_dig_graph()  # if it is 'dig'

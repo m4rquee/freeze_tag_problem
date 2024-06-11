@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 
 from src.cp.utils.utils import *
 from src.cp.utils.plotting import plot_graph
-from src.cp.utils.reading import read_tsplib_2d_graph
+from src.cp.utils.instance import read_tsplib_2d_graph
 
 delta = 1E-2
 

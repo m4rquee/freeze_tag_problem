@@ -1,15 +1,14 @@
-from sys import argv
-
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
 from src.cp.utils.utils import *
-from src.cp.utils.reading import read_tsplib_2d_graph
+from src.cp.utils.cli import read_arguments
+from src.cp.utils.instance import read_tsplib_2d_graph
 from src.cp.utils.plotting import plot_graph, plot_grid
 from src.cp.solving.solvers import solve_bdhst, solve_ftp_inner
 
-MAX_TIME = int(argv[1])
-EPS = float(argv[2])
+
+MAX_TIME, EPS = read_arguments(int, float)
 TOTAL_TIME = MAX_TIME
 delta = 1E-4
 
