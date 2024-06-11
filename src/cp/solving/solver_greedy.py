@@ -1,8 +1,8 @@
 from matplotlib import pyplot as plt
 
-from src.cp.utils import *
-from src.cp.plotting import plot_solution
-from src.cp.reading import read_tsplib_2d_graph
+from src.cp.utils.utils import *
+from src.cp.utils.plotting import plot_graph
+from src.cp.utils.reading import read_tsplib_2d_graph
 
 delta = 1E-2
 
@@ -34,7 +34,7 @@ plt.figure(figsize=(10, 6))
 
 node_colors = ['black' if source != node else 'red' for node in tree.nodes]
 coords_dict = {names[i]: c for i, c in enumerate(coords)}
-plot_solution(tree, coords_dict, node_colors, 'green', style='solid', node_size=40)
+plot_graph(tree, coords_dict, node_colors, 'green', style='solid', node_size=40)
 
 plt.gca().set_aspect('equal', adjustable='box')
 plt.show()

@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 
-from src.cp.utils import *
+from src.cp.utils.utils import *
 
 
 def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDHST Problem',

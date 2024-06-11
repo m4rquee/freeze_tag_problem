@@ -3,10 +3,10 @@ from sys import argv
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
-from src.cp.utils import *
-from src.cp.reading import *
+from src.cp.utils.utils import *
+from src.cp.utils.reading import *
 from src.cp.solving.solvers import solve_ftp
-from src.cp.plotting import plot_solution
+from src.cp.utils.plotting import plot_graph
 
 MAX_TIME = int(argv[1])
 TYPE = argv[2]
@@ -89,13 +89,13 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     # Solution plotting:
     plt.figure(figsize=(10, 6))
     if TYPE != 'tsplib_2d':
-        coords_dict = nx.nx_agraph.graphviz_layout(dist.original_graph, prog='dot')
-        plot_solution(dist.original_graph, coords_dict, 'white', 'gray', style='dotted', node_size=40)
-        plot_solution(tree, coords_dict, node_colors, 'green', style='solid', node_size=40,
+        coords_dict = nx.spectral_layout(dist.original_graph, dim=2)
+        plot_graph(dist.original_graph, coords_dict, 'white', 'gray', style='dotted', node_size=40)
+        plot_graph(tree, coords_dict, node_colors, 'green', style='solid', node_size=40,
                       connectionstyle='arc3,rad=0.1')
     else:
         coords_dict = {names[i]: c for i, c in enumerate(coords)}
-        plot_solution(tree, coords_dict, node_colors, 'green', style='solid', node_size=40)
+        plot_graph(tree, coords_dict, node_colors, 'green', style='solid', node_size=40)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.show()
 else:

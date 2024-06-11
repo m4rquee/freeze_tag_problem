@@ -3,9 +3,9 @@ from sys import argv
 from matplotlib import pyplot as plt
 from ortools.sat.python import cp_model
 
-from src.cp.utils import *
-from src.cp.reading import *
-from src.cp.plotting import plot_solution
+from src.cp.utils.utils import *
+from src.cp.utils.reading import *
+from src.cp.utils.plotting import plot_graph
 from src.cp.solving.solvers import solve_bdhst, solve_ftp_inner
 
 MAX_TIME = int(argv[1])
@@ -111,16 +111,16 @@ plt.figure(figsize=(10, 6))
 coords_dict = nx.spring_layout(space.original_graph)  # nx.nx_agraph.graphviz_layout(space.original_graph, prog='dot')
 
 # Full solution:
-plot_solution(tree, coords_dict, 'White', 'green', style='solid', node_size=100,
+plot_graph(tree, coords_dict, 'White', 'green', style='solid', node_size=100,
               connectionstyle='arc3,rad=0.15', with_labels=True, verticalalignment='bottom')
 
 # Domain graph:
 node_colors = [cluster_map[v][0] for v in range(n)]
-plot_solution(space.original_graph, coords_dict, node_colors, 'black', style='dotted', node_size=100)
+plot_graph(space.original_graph, coords_dict, node_colors, 'black', style='dotted', node_size=100)
 
 # Upper level solution:
 node_colors = ['white' if source != node else 'red' for node in d_names]
-plot_solution(d_tree, coords_dict, node_colors, 'red', style='dotted', node_size=25,
+plot_graph(d_tree, coords_dict, node_colors, 'red', style='dotted', node_size=25,
               connectionstyle='arc3,rad=0.1')
 
 plt.gca().set_aspect('equal', adjustable='box')
