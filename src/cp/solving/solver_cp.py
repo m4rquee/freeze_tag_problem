@@ -60,7 +60,7 @@ if status == cp_model.FEASIBLE or status == cp_model.OPTIMAL:
     print(f'  solution makespan: {DELTA * depth:.2f}')
     lb = solver.BestObjectiveBound()
     print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
-    print(f'  greedy gap: {100 * (UB - LB) / LB:.2f}%')
+    print(f'  greedy gap: {100 * (UB - lb) / LB:.2f}%')
     print(f'  d_v: (', end='')
     for v in range(n - 1):
         depth_v = solver.Value(d_v[v])
