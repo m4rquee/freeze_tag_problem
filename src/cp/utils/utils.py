@@ -1,21 +1,21 @@
 import random
-from functools import cache
-from math import sqrt, floor, ceil, log2
+from math import floor, ceil, log2
 
 import numpy as np
 import networkx as nx
 from sklearn import cluster
-from networkx.algorithms.approximation.steinertree import metric_closure
 
-DELTA = 1E-2  # controls the precision of distance calculations
-# random.seed(42)
+from src.cp.utils.constants import *
+from src.cp.utils.metric_space import *
+
+random.seed(SEED)
 
 
-def radius(center, n, dist):
+def radius(center, space):
     ret = 0
-    for v in range(n):
+    for v in range(space.n):
         if v == center: continue
-        ret = max(ret, dist(center, v))
+        ret = max(ret, space(center, v))
     return ret
 
 
@@ -29,11 +29,11 @@ def trivial_ftp_ub(n, dist):
     return diameter * minimum_depth
 
 
-def min_dist(n, dist):
+def min_dist(space):
     ret = float('inf')
-    for u in range(n):
-        for v in range(u + 1, n):
-            ret = min(ret, dist(u, v))
+    for u in range(space.n):
+        for v in range(u + 1, space.n):
+            ret = min(ret, space(u, v))
     return ret
 
 
@@ -111,72 +111,16 @@ def max_cluster_radius(space, centers_names, cluster_map):
     return ret
 
 
-class MetricSpace:
-    def __init__(self, n):
-        self.n = n
-        self.func = None
-
-    def __call__(self, u, v):
-        return self.func(u, v)
-
-    def __len__(self):
-        return self.n
-
-    def __getitem__(self, points):  # restrict to a sub-set of points
-        ret = MetricSpace(len(points))
-
-        def aux(u, v):
-            u, v = points[u], points[v]
-            return self.func(u, v)
-
-        ret.func = aux
-        return ret
-
-    def __iter__(self):
-        yield from range(self.n)
-
-
-class L2Norm(MetricSpace):
-    def __init__(self, coords, delta=DELTA):
-        super().__init__(len(coords))
-        self.coords = coords
-        self.delta = delta
-
-        @cache
-        def aux(u, v):
-            d = sqrt((self.coords[u][0] - self.coords[v][0]) ** 2 + (self.coords[u][1] - self.coords[v][1]) ** 2)
-            return floor(d / self.delta)  # scale up so we can treat rational values as integers
-
-        self.func = aux
-
-
-class GraphDist(MetricSpace):
-    def __init__(self, n, edges, delta=DELTA):
-        super().__init__(n)
-        self.original_graph = nx.empty_graph(n)  # create an empty graph first to preserve node order
-        self.original_graph.add_edges_from(edges)
-        self.graph = metric_closure(self.original_graph)
-        self.delta = delta
-
-        @cache
-        def aux(u, v):
-            if u == v: return 0
-            d = self.graph.get_edge_data(u, v)['distance']
-            return floor(d / self.delta)  # scale up so we can treat rational values as integers
-
-        self.func = aux
-
-
-def greedy_solution(source, n, dist):
+def greedy_solution(source, space):
     # todo: optimize this function
-    if n <= 1: return [], 0
+    if space.n <= 1: return [], 0
 
     # Connect the source to the closest node:
     min_target = None
     min_arc_weight = float('inf')
-    for v in range(n):
+    for v in range(space.n):
         if v == source: continue
-        aux = dist(source, v)
+        aux = space(source, v)
         if aux < min_arc_weight:
             min_target = v
             min_arc_weight = aux
@@ -185,19 +129,19 @@ def greedy_solution(source, n, dist):
     makespan = min_arc_weight
 
     # Init the degree map (-1 are not yet border nodes and -2 saturated nodes):
-    degree = {v: -1 for v in range(n)}
+    degree = {v: -1 for v in range(space.n)}
     degree[source] = -2
     degree[min_target] = 0
 
     border = [min_target]
-    while len(sol_edges) < n - 1:
+    while len(sol_edges) < space.n - 1:
         min_arc = (None, None)
         min_makespan = float('inf')
         for u in border:
-            for v in range(n):
+            for v in range(space.n):
                 if v == source or v == u: continue
                 if degree[v] == -1:  # not yet added
-                    aux = node_activation[u] + dist(u, v)
+                    aux = node_activation[u] + space(u, v)
                     if aux < min_makespan:
                         min_arc = (u, v)
                         min_makespan = aux
@@ -229,12 +173,12 @@ def normalize(coords, eps):
     return [(factor * x, factor * y) for x, y in zip(xs, ys)], factor
 
 
-def discretize(names, coords, eps):  # the source is assumed to be the last node
+def discretize(coords, eps):  # the source is assumed to be the last node
     grid_dim = ceil(1.0 / eps)
     grid = [[[] for _ in range(grid_dim)] for _ in range(grid_dim)]
 
     source = 0
-    for v, (x, y) in zip(names, coords):
+    for v, (x, y) in enumerate(coords):
         if v == source:
             grid[floor(x)][floor(y)].insert(0, source)  # make sure the source is a representative
         else:
@@ -297,19 +241,25 @@ def graph_to_edge_matrix(graph):
     return edge_mat
 
 
-def k_means_clustering(space: GraphDist, eps):
-    edge_mat = graph_to_edge_matrix(space.original_graph)
+def k_means_clustering(space, eps):
     n_clusters = min(space.n, ceil(1.0 / eps))
-    kmeans = cluster.KMeans(n_clusters=n_clusters).fit(edge_mat)
+    if isinstance(space, GraphDist):
+        edge_mat = graph_to_edge_matrix(space.original_graph)
+        kmeans = cluster.KMeans(n_clusters=n_clusters).fit(edge_mat)
 
-    centers_names = []
-    for label, c in enumerate(kmeans.cluster_centers_):
-        cluster_nodes = np.argwhere(kmeans.labels_ == label)
-        best_center_pos = np.argmax(c[cluster_nodes])
-        best_center = cluster_nodes[best_center_pos]
-        centers_names.append(int(best_center))
+        centers_names = []
+        for label, c in enumerate(kmeans.cluster_centers_):
+            cluster_nodes = np.argwhere(kmeans.labels_ == label)
+            best_center_pos = np.argmax(c[cluster_nodes])
+            best_center = cluster_nodes[best_center_pos]
+            centers_names.append(int(best_center))
 
-    centers_names, rep_degrees, cluster_map = clusters(space, centers_names)
+        centers_names, rep_degrees, cluster_map = clusters(space, centers_names)
+    else:
+        coords_array = np.array(space.coords)
+        kmeans = cluster.KMeans(n_clusters=n_clusters).fit(coords_array)
+        centers_names, rep_degrees, cluster_map = partition(space, kmeans.labels_)
+
     return centers_names, rep_degrees, cluster_map
 
 

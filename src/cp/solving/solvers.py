@@ -3,7 +3,7 @@ from ortools.sat.python import cp_model
 from src.cp.utils.utils import *
 
 
-def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDHST Problem',
+def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDMHST Problem',
                 gap=0.0, init_sol=None):
     n = len(names)
     source = 0
@@ -66,15 +66,15 @@ def solve_bdhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth
     solver.parameters.relative_gap_limit = gap
     status = solver.Solve(model)
 
-    return status, model, solver, depth, d_v, x_e
+    return BDMHST(source, ub, status, model, solver, depth, d_v, x_e)
 
 
 def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None):
     degrees = [1] + (len(names) - 1) * [2]
-    return solve_bdhst(names, dist, degrees, max_time, lb, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
+    return solve_bdmhst(names, dist, degrees, max_time, lb, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
 
 
-def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, delta, max_time):
+def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, max_time):
     cluster = cluster_map[source]  # current cluster
     source_father = next(d_tree.predecessors(source), None)  # the father of this cluster's representative
 
@@ -82,7 +82,7 @@ def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, delta, max_tim
     leaves = []
     for child_cell_representative in d_tree.neighbors(source):
         child_cell = cluster_map[child_cell_representative]
-        rep, max_time = solve_ftp_inner(sol_edges, d_tree, child_cell[0], dist, cluster_map, delta, max_time)
+        rep, max_time = solve_ftp_inner(sol_edges, d_tree, child_cell[0], dist, cluster_map, max_time)
         leaves.append(rep)  # save the new dynamically chosen representative
 
     cell_names = cluster + leaves
@@ -101,17 +101,16 @@ def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, delta, max_tim
     # Solve the sub-problem:
     local_dist = dist[cell_names]
 
-    source_radius = radius(0, n, local_dist)
-    min_edge = min_dist(n, local_dist)
-    LB = max(source_radius, min_edge * ceil(log2(n)))
-    cell_sol_edges, UB = greedy_solution(0, n, local_dist)  # it is not yet valid because there are fixed leaves
+    source_radius = radius(0, local_dist)
+    min_edge = min_dist(local_dist)
+    LB = min_edge * ceil(log2(n))
+    cell_sol_edges, UB = greedy_solution(0, local_dist)  # it is not yet valid because there are fixed leaves
     UB += 2 * source_radius  # account for the leaves by adding a relocation cost
 
-    status, _, solver, _, _, x_e = \
-        solve_bdhst(cell_names, local_dist, degrees, max_time, LB, UB, 0, False, 'Freeze-Tag Problem', 0,
-                    cell_sol_edges)
-    status = status == cp_model.FEASIBLE or status == cp_model.OPTIMAL
-    max_time -= solver.WallTime()
+    bdmhst = solve_bdmhst(cell_names, local_dist, degrees, max_time, LB, UB, 0, False, 'Freeze-Tag Problem', 0,
+        cell_sol_edges)
+    status = bdmhst.status == cp_model.FEASIBLE or bdmhst.status == cp_model.OPTIMAL
+    max_time -= bdmhst.solver.WallTime()
     if not status:
         exit(f'\nCould not find any solution to the inner cluster!')
 
@@ -120,7 +119,7 @@ def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, delta, max_tim
     for u in range(n):
         for v in range(1, n):
             if u == v: continue
-            if solver.Value(x_e[u][v]):
+            if bdmhst.solver.Value(bdmhst.x_e[u][v]):
                 if cell_names[u] == source_father:
                     # Do not connect the new source to source_father, as the connection between source_father's cluster
                     # and the current one will be defined later:
@@ -129,3 +128,56 @@ def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, delta, max_tim
                     sol_edges.append((cell_names[u], cell_names[v]))
 
     return new_source, max_time
+
+
+class BDMHST():
+    def __init__(self, source, UB, status, model, solver, depth, d_v, x_e):
+        self.source = source
+        self.UB = UB
+        self.status = status
+        self.model = model
+        self.solver = solver
+        self.depth = depth
+        self.d_v = d_v
+        self.x_e = x_e
+
+
+class Solution():
+    def __init__(self, tree, node_colors):
+        self.tree = tree
+        self.node_colors = node_colors
+
+
+def get_solution(space, bdmhst):
+    print('Full FTP solution:')
+    depth = bdmhst.solver.Value(bdmhst.depth)
+    print(f'  solution makespan: {DELTA * depth:.2f}')
+    lb = bdmhst.solver.BestObjectiveBound()
+    print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
+    print(f'  greedy gap: {100 * (bdmhst.UB - lb) / lb:.2f}%')
+    print(f'  d_v: (', end='')
+    for v in range(space.n - 1):
+        depth_v = bdmhst.solver.Value(bdmhst.d_v[v])
+        print(f'{DELTA * depth_v:.2f}', end=', ')
+    print(f'{DELTA * bdmhst.solver.Value(bdmhst.d_v[-1])})')
+
+    print('  edges: ', end='')
+    sol_edges = []
+    for u in range(space.n):
+        for v in range(1, space.n):
+            if u == v: continue
+            if bdmhst.solver.Value(bdmhst.x_e[u][v]):
+                print(f'{u}-{v}; ', end='')
+                sol_edges.append((u, v))
+    tree = nx.DiGraph(sol_edges)
+    hop_depth = calc_depth(bdmhst.source, tree)
+    print(f'\n  hop depth: {hop_depth}')
+
+    node_colors = []
+    for v in tree.nodes:
+        if v == bdmhst.source:
+            node_colors.append('red')
+        else:
+            node_colors.append('cyan' if bdmhst.solver.Value(bdmhst.d_v[v]) == depth else 'black')
+
+    return Solution(tree, node_colors)

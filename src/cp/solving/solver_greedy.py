@@ -1,40 +1,31 @@
-from matplotlib import pyplot as plt
-
 from src.cp.utils.utils import *
-from src.cp.utils.plotting import plot_graph
-from src.cp.utils.instance import read_tsplib_2d_graph
-
-delta = 1E-2
+from src.cp.utils.cli import read_arguments
+from src.cp.solving.solvers import Solution
+from src.cp.utils.instance import get_instance
+from src.cp.utils.plotting import plot_solution
 
 # Setup:
-names, coords = read_tsplib_2d_graph()
-n = len(names)
+TYPE, = read_arguments(str)
+space = get_instance(TYPE)
 source = 0
-dist = L2Norm(coords, delta)
 
 # Print instance info:
 print('Freeze-Tag instance information:')
-print('\tNumber of nodes =', n)
+print('\tNumber of nodes =', space.n)
 print('\tSource =', source)
 
 # FTP solving:
-sol_edges, makespan = greedy_solution(source, n, dist)
+sol_edges, makespan = greedy_solution(source, space)
 
 print('\nGreedy FTP solution:')
-print(f'\tsolution makespan: {delta * makespan:.2f}')
+print(f'\tsolution makespan: {DELTA * makespan:.2f}')
 tree = nx.DiGraph(sol_edges)
 hop_depth = calc_depth(source, tree)
 print(f'\thop depth: {hop_depth}')
-source_radius = radius(source, n, dist)
-print(f'\tsource radius: {delta * source_radius:.2f}')
+source_radius = radius(source, space)
+print(f'\tsource radius: {DELTA * source_radius:.2f}')
 print(f'\tgap: {100 * (makespan - source_radius) / source_radius:.2f}%')
 
 # Solution plotting:
-plt.figure(figsize=(10, 6))
-
 node_colors = ['black' if source != node else 'red' for node in tree.nodes]
-coords_dict = {names[i]: c for i, c in enumerate(coords)}
-plot_graph(tree, coords_dict, node_colors, 'green', style='solid', node_size=40)
-
-plt.gca().set_aspect('equal', adjustable='box')
-plt.show()
+plot_solution('dot', space, Solution(tree, node_colors))

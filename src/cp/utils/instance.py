@@ -2,8 +2,10 @@ from math import log
 import networkx as nx
 from random import sample
 
+from src.cp.utils.utils import *
 
-def read_tsplib_2d_graph():
+
+def read_tsplib_2d_graph(eps=None):
     while input() != 'NODE_COORD_SECTION': pass
 
     coords = []
@@ -12,8 +14,10 @@ def read_tsplib_2d_graph():
         coord = (float(x), float(y))
         # if coord in coords: continue  # ignore duplicates
         coords.append(coord)
-    n = len(coords)
-    return list(range(n)), coords
+    if eps is not None:
+        coords, factor = normalize(coords, eps)
+        return L2Norm(coords), factor
+    return L2Norm(coords)
 
 
 def read_dig_graph():
@@ -28,7 +32,9 @@ def read_dig_graph():
         line = input()
         tail, head, weight = line.split()
         edges.append((int(tail), int(head), {'weight': float(weight)}))
-    return list(range(n)), edges
+    space = GraphDist()
+    space.init_from_edges(n, edges)
+    return space
 
 
 def read_tsplib_hcp_graph():
@@ -42,7 +48,9 @@ def read_tsplib_hcp_graph():
     while (line := input()) != 'EOF':
         tail, head = line.split()
         edges.append((int(tail) - 1, int(head) - 1, {'weight': 1}))
-    return list(range(n)), edges
+    space = GraphDist()
+    space.init_from_edges(n, edges)
+    return space
 
 
 def gnp_graph(n, p, max_iter=1000):
@@ -55,37 +63,47 @@ def gnp_graph(n, p, max_iter=1000):
             graph = aux
             break
     if graph is None: exit(f'Could not generate a connected graph after {max_iter} trials!')
-    return list(graph.nodes), list(graph.edges(data=True))
+    space = GraphDist()
+    space.init_from_graph(graph)
+    return space
 
 
 def ws_graph(n, k, p):
     n = int(n)
     p = float(p)
     k = int(k)
-    aux = nx.connected_watts_strogatz_graph(n, k, p)
-    return list(aux.nodes), list(aux.edges(data=True))
+    graph = nx.connected_watts_strogatz_graph(n, k, p)
+    space = GraphDist()
+    space.init_from_graph(graph)
+    return space
 
 
 def tree_graph(r, h):
     r = int(r)
     h = int(h)
-    aux = nx.balanced_tree(r, h)
-    return list(aux.nodes), list(aux.edges(data=True))
+    graph = nx.balanced_tree(r, h)
+    space = GraphDist()
+    space.init_from_graph(graph)
+    return space
 
 
 def regular_graph(d, n):
     d = int(d)
     n = int(n)
-    aux = nx.random_regular_graph(d, n)
-    return list(aux.nodes), list(aux.edges(data=True))
+    graph = nx.random_regular_graph(d, n)
+    space = GraphDist()
+    space.init_from_graph(graph)
+    return space
 
 
 def lobster_graph(n, p1, p2):
     n = int(n)
     p1 = float(p1)
     p2 = float(p2)
-    aux = nx.random_lobster(n, p1, p2)
-    return list(aux.nodes), list(aux.edges(data=True))
+    graph = nx.random_lobster(n, p1, p2)
+    space = GraphDist()
+    space.init_from_graph(graph)
+    return space
 
 
 def combine_graphs(g, h, k=1):
@@ -96,16 +114,19 @@ def combine_graphs(g, h, k=1):
     for e in h.edges:
         for v in g:
             prod.add_edge(v * len(h) + e[0], v * len(h) + e[1])
-    return list(prod.nodes), list(prod.edges(data=True))
+    space = GraphDist()
+    space.init_from_graph(prod)
+    return space
 
 
 def get_instance(instance_type):
     instance, *args = instance_type.split('-')
     match instance:
+        case 'tsplib_2d': return read_tsplib_2d_graph()
         case 'tsplib_hcp': return read_tsplib_hcp_graph()
         case 'gnp': return gnp_graph(*args)
         case 'ws': return ws_graph(*args)
         case 'tree': return tree_graph(*args)
         case 'regular': return regular_graph(*args)
         case 'lobster': return lobster_graph(*args)
-        case _: return read_dig_graph()  # if it is 'dig'
+        case 'dig': return read_dig_graph()
