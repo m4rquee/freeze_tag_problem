@@ -166,7 +166,7 @@ def normalize(coords, eps):
     min_y_coord = min(ys)
     xs = [-min_x_coord + x for x in xs]
     ys = [-min_y_coord + y for y in ys]
-    bounding_box_size = max(*xs, *ys) + 1  # add one to avoid boundary points
+    bounding_box_size = 1.01 * max(*xs, *ys)  # add 1% to avoid boundary points
 
     # Resize the points to fit in a ceil(1 / eps) x ceil(1 / eps) square:
     factor = grid_dim / bounding_box_size

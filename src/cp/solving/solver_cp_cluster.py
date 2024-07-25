@@ -74,7 +74,7 @@ _, UB = greedy_solution(source, space)
 print('\nFreeze-Tag solution:')
 print(f'  number of nodes  : {space.n}')
 if isinstance(space, GraphDist):
-    print('\tnumber of edges =', space.original_graph.number_of_edges())
+    print('  number of edges  :', space.original_graph.number_of_edges())
 print(f'  solution makespan: {DELTA * makespan:.2f}')
 print(f'  source radius    : {DELTA * source_radius:.2f}')
 print(f'  max cluster size : {DELTA * biggest_cell:.2f}')
@@ -86,7 +86,7 @@ print(f'  hop depth        : {hop_depth}')
 print(f'  time to solve    : {TOTAL_TIME - MAX_TIME:.2f}s')
 
 # Solution plotting:
-node_colors = [cluster_map[v][0] for v in space]
+node_colors = [cluster_map[v][0] for v in tree.nodes]
 d_node_colors = ['white' if source != node else 'red' for node in d_names]
 
 upper_solution = Solution(d_tree, d_node_colors)
