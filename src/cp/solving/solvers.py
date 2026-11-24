@@ -1,12 +1,15 @@
 from ortools.sat.python import cp_model
 
+from src.cp.solving.ftp_cuts import add_ftp_extended_cuts
 from src.cp.utils.utils import *
 
 
 def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_depth=0, log=False, name='BDMHST Problem',
-                gap=0.0, init_sol=None):
+                gap=0.0, init_sol=None, *, extended_cuts=False, workers=8):
     n = len(names)
     source = 0
+    if extended_cuts and list(degrees) != [1] + [2] * (n - 1):
+        raise ValueError('FTP extended cuts require root capacity one and nonroot capacity two')
 
     # Model creation:
     model = cp_model.CpModel()
@@ -21,8 +24,9 @@ def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_dept
 
     # Creates the constraints:
     out_degree_sum = sum(x_e[source])
-    model.Add(out_degree_sum <= degrees[source])
-    model.Add(out_degree_sum >= 1)  # the out-degree of the root is at least one
+    if n > 1:
+        model.Add(out_degree_sum <= degrees[source])
+        model.Add(out_degree_sum >= 1)  # the out-degree of the root is at least one
     # the in-degree of the root is zero (there is no in-arc variable for the source)
 
     model.AddMaxEquality(depth, d_v)  # the depth of the tree is the maximum of the depth of each of its nodes
@@ -51,6 +55,10 @@ def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_dept
                 if u == v:  continue
                 model.Add(hop_d_v[v] == hop_d_v[u] + 1).OnlyEnforceIf(x_e[u][v])
 
+    if extended_cuts:
+        arcs = {(u, v): x_e[u][v] for u in range(n) for v in range(1, n) if u != v}
+        add_ftp_extended_cuts(model, n, arcs)
+
     # Provides a warm start to the solver:
     if init_sol is not None:
         for u, v in init_sol:
@@ -59,7 +67,7 @@ def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_dept
     # Creates a solver and solves the model:
     model.Minimize(depth)
     solver = cp_model.CpSolver()
-    solver.parameters.num_search_workers = 8
+    solver.parameters.num_search_workers = workers
     solver.parameters.max_time_in_seconds = max_time
     solver.parameters.log_search_progress = log
     solver.parameters.name = name
@@ -69,9 +77,10 @@ def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_dept
     return BDMHST(source, ub, status, model, solver, depth, d_v, x_e)
 
 
-def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None):
+def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None, *, extended_cuts=False):
     degrees = [1] + (len(names) - 1) * [2]
-    return solve_bdmhst(names, dist, degrees, max_time, lb, ub, 0, log, 'Freeze-Tag Problem', 0, init_sol)
+    return solve_bdmhst(names, dist, degrees, max_time, lb, ub, log=log, name='Freeze-Tag Problem',
+                       init_sol=init_sol, extended_cuts=extended_cuts, workers=16)
 
 
 def solve_ftp_inner(sol_edges, d_tree, source, dist, cluster_map, max_time):
@@ -148,13 +157,19 @@ class Solution():
         self.node_colors = node_colors
 
 
+def gap_percentage(upper, lower):
+    if lower == 0:
+        return 0.0 if upper == 0 else float('inf')
+    return 100 * (upper - lower) / lower
+
+
 def get_solution(space, bdmhst):
     print('Full FTP solution:')
     depth = bdmhst.solver.Value(bdmhst.depth)
     print(f'  solution makespan: {DELTA * depth:.2f}')
     lb = bdmhst.solver.BestObjectiveBound()
-    print(f'  gap: {100 * (depth - lb) / lb:.2f}%')
-    print(f'  greedy gap: {100 * (bdmhst.UB - lb) / lb:.2f}%')
+    print(f'  gap: {gap_percentage(depth, lb):.2f}%')
+    print(f'  greedy gap: {gap_percentage(bdmhst.UB, lb):.2f}%')
     print(f'  d_v: (', end='')
     for v in range(space.n - 1):
         depth_v = bdmhst.solver.Value(bdmhst.d_v[v])
@@ -170,6 +185,7 @@ def get_solution(space, bdmhst):
                 print(f'{u}-{v}; ', end='')
                 sol_edges.append((u, v))
     tree = nx.DiGraph(sol_edges)
+    tree.add_node(bdmhst.source)
     hop_depth = calc_depth(bdmhst.source, tree)
     print(f'\n  hop depth: {hop_depth}')
 

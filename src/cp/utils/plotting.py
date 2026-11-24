@@ -41,10 +41,12 @@ def plot_graph3d(graph, node_coords, node_color='black', edge_color='black', **k
 def plot_solution(layout, space, solution, upper_solution=None, eps=None):
     plt.figure(figsize=(10, 6))
     if isinstance(space, GraphDist):
-        match layout:
-            case 'spring': coords_dict = nx.spring_layout(space.original_graph)
-            case 'spectral': coords_dict = nx.spectral_layout(space.original_graph)
-            case _: coords_dict = nx.nx_agraph.graphviz_layout(space.original_graph, prog=layout)
+        if layout == 'spring':
+            coords_dict = nx.spring_layout(space.original_graph)
+        elif layout == 'spectral':
+            coords_dict = nx.spectral_layout(space.original_graph)
+        else:
+            coords_dict = nx.nx_agraph.graphviz_layout(space.original_graph, prog=layout)
 
         plot_graph(space.original_graph, coords_dict, 'white', 'gray', style='dashed', node_size=40)
     else:

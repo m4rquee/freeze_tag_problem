@@ -1,4 +1,5 @@
 #include "myutils.hpp"
+#include <cstdlib>
 
 double MY_EPS = 1E-1;
 double MY_INF = 1E10;
@@ -8,11 +9,34 @@ string PDF_READER = "xdg-open";// the Linux will choose the default one
 
 // Dealing with PDF files and strings: ---------------------------------------------------------------------------------
 
+namespace {
+string shell_argument(const string &value) {
+    string quoted = "'";
+    for (char c : value) quoted += c == '\'' ? "'\\''" : string(1, c);
+    return quoted + "'";
+}
+}
+
 int view_pdf_file(const string &filename) {
-    char cmd[MAX_CMD_SIZE];
-    sprintf(cmd, "%s %s", PDF_READER.c_str(), filename.c_str());
-    system(cmd);
-    return 0;
+    ifstream pdf(filename, ios::binary);
+    if (!pdf) {
+        cerr << "Cannot open solution PDF: " << filename << endl;
+        return 1;
+    }
+    const char *override_reader = getenv("FTP_PDF_READER");
+    const bool overridden = override_reader && *override_reader;
+    string reader = overridden ? override_reader : PDF_READER;
+    // Desktop helpers must use the system gio/file tools, rather than incompatible
+    // copies from an activated Conda environment. This changes only the child process.
+    string command;
+    if (!overridden && reader == "xdg-open")
+        command = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin ";
+    command += shell_argument(reader) + " " + shell_argument(filename);
+    int status = system(command.c_str());
+    if (status != 0)
+        cerr << "Could not launch the PDF viewer. Solution PDF saved at: " << filename
+             << "\nSet FTP_PDF_READER to a PDF viewer executable to override the default." << endl;
+    return status;
 }
 
 // Reading tables from text files: -------------------------------------------------------------------------------------

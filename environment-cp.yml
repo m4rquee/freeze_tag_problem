@@ -1,0 +1,16 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - networkx
+  - numpy
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - graphviz
+  - pygraphviz
+  - tk
+  - more-itertools
+  - pip:
+      - ortools

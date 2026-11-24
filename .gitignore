@@ -90,5 +90,16 @@ cmake-build-debug
 output/
 bin/
 
+# Solver model export
+gurobi_model.lp
+
+# Temporary Graphviz layouts and solution previews
+.readgraphtempname.dot
+.readgraphtempname_pos.dot
+.viewgraphtempname
+.viewgraphtempname.pdf
+.viewdigraphtempname
+.viewdigraphtempname.pdf
+
 # Pycache
 __pycache__/

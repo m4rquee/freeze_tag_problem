@@ -121,12 +121,11 @@ def combine_graphs(g, h, k=1):
 
 def get_instance(instance_type):
     instance, *args = instance_type.split('-')
-    match instance:
-        case 'tsplib_2d': return read_tsplib_2d_graph()
-        case 'tsplib_hcp': return read_tsplib_hcp_graph()
-        case 'gnp': return gnp_graph(*args)
-        case 'ws': return ws_graph(*args)
-        case 'tree': return tree_graph(*args)
-        case 'regular': return regular_graph(*args)
-        case 'lobster': return lobster_graph(*args)
-        case 'dig': return read_dig_graph()
+    if instance == 'tsplib_2d': return read_tsplib_2d_graph()
+    if instance == 'tsplib_hcp': return read_tsplib_hcp_graph()
+    if instance == 'gnp': return gnp_graph(*args)
+    if instance == 'ws': return ws_graph(*args)
+    if instance == 'tree': return tree_graph(*args)
+    if instance == 'regular': return regular_graph(*args)
+    if instance == 'lobster': return lobster_graph(*args)
+    if instance == 'dig': return read_dig_graph()

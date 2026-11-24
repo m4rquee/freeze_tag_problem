@@ -21,7 +21,8 @@ extern string PDF_READER;// Program to open a pdf file.
                          // <pdfreader>  <pdffile>
 
 // Dealing with PDF files and strings: ---------------------------------------------------------------------------------
-int view_pdf_file(const string &filename);// opens a pdf file using the program defined at PDF_READER
+// FTP_PDF_READER optionally overrides the viewer executable; returns its launch status.
+int view_pdf_file(const string &filename);
 
 inline bool is_space(char c) { return (c == ' ') || (c == '\t'); }
 

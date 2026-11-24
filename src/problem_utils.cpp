@@ -57,14 +57,15 @@ void Problem_Instance::read_tsplib_instance(const string &filename) {
     }
 
     string line;
-    do {// skip the header lines
-        getline(file, line);
-    } while (line != "NODE_COORD_SECTION");
+    while (getline(file, line) && trim(line) != "NODE_COORD_SECTION") {}
+    if (!file) throw runtime_error("Missing TSPLIB NODE_COORD_SECTION");
 
     int id;
     double x, y;
-    for (getline(file, line); line != "EOF"; getline(file, line)) {
-        sscanf(line.c_str(), "%d %lf %lf", &id, &x, &y);
+    while (getline(file, line) && trim(line) != "EOF") {
+        if (line.empty()) continue;
+        if (sscanf(line.c_str(), "%d %lf %lf", &id, &x, &y) != 3)
+            throw runtime_error("Invalid TSPLIB coordinate");
         auto u = g.addNode();
         vname[u] = to_string(id);
         px[u] = x;
