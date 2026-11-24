@@ -14,7 +14,8 @@ def main():
     parser = argparse.ArgumentParser(description='Solve freeze-tag with the base CP-SAT model.')
     parser.add_argument('seconds', type=int, help='CP-SAT search time limit')
     parser.add_argument('type', help='Instance type, e.g. dig, tsplib_2d, or tree-2-2')
-    parser.add_argument('--extended-cuts', action='store_true', help='Enable two-cycle and leaf cuts')
+    parser.add_argument('--extended-cuts', action=argparse.BooleanOptionalAction, default=True,
+                        help='Enable two-cycle and leaf cuts (default: enabled)')
     args = parser.parse_args()
     space = get_instance(args.type)
     if space is None:
@@ -35,8 +36,7 @@ def main():
     print(f'\tGreedy bound = {DELTA * upper:.2f}')
     print(f'\tLower bound = {DELTA * lower:.2f}')
     print(f'\tInitial gap = {gap_percentage(upper, lower):.2f}%')
-    if args.extended_cuts:
-        print('\tExtended cuts = enabled')
+    print(f'\tExtended cuts = {"enabled" if args.extended_cuts else "disabled"}')
 
     bdmhst = solve_ftp(
         list(space), space, args.seconds, lower, upper, True, sol_edges,

@@ -77,7 +77,7 @@ def solve_bdmhst(names, dist, degrees, max_time, lb=0, ub=float('inf'), hop_dept
     return BDMHST(source, ub, status, model, solver, depth, d_v, x_e)
 
 
-def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None, *, extended_cuts=False):
+def solve_ftp(names, dist, max_time, lb, ub, log=False, init_sol=None, *, extended_cuts=True):
     degrees = [1] + (len(names) - 1) * [2]
     return solve_bdmhst(names, dist, degrees, max_time, lb, ub, log=log, name='Freeze-Tag Problem',
                        init_sol=init_sol, extended_cuts=extended_cuts, workers=16)
